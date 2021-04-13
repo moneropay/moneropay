@@ -33,18 +33,34 @@ func addTransferRoutes(rg *gin.RouterGroup) {
 	g := rg.Group("/transfer")
 
 	g.POST("/", func(c *gin.Context) {
-		amount, err := wallet.StringToXMR(c.PostForm("amount"))
-                if err != nil {
-                        c.JSON(http.StatusBadRequest, gin.H{
-                                "error": err.Error(),
-                        })
-                        return
-                }
-
-		address := c.PostForm("address")
-
+		if c.ContentType() != "application/json" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "bad content-type",
+			})
+			return
+		}
+		type Destination struct {
+			Amount float64 `json:"amount"`
+			Address string `json:"address"`
+		}
+		var d0 []*Destination
+		var d1 []*wallet.Destination
+		err := c.BindJSON(&d0)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		for _, i := range d0 {
+			d :=  wallet.Destination{
+				Amount: wallet.Float64ToXMR(i.Amount),
+				Address: i.Address,
+			}
+			d1 = append(d1, &d)
+		}
 		resp, err := w.Transfer(&wallet.RequestTransfer{
-			Destinations: []*wallet.Destination{&wallet.Destination{amount, address}},
+			Destinations: d1,
 			Priority: wallet.Priority(config.Values.TransferPriority),
 			Mixing: config.Values.TransferMixin,
 			UnlockTime: config.Values.TransferUnlockTime,

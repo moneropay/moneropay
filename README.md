@@ -3,20 +3,20 @@
 ## `moneropayd` - Monero payment API
 
 ### Endpoints
-| Method | URI                | Data                                   |
-| :----: | ------------------ | -------------------------------------- |
-| `GET`  | /v1/balance/       |                                        |
-| `POST` | /v1/address/       |                                        |
-| `GET`  | /v1/address/:index |                                        |
-| `POST` | /v1/transfer/      | address={walletAddress} amount={float} |
-| `GET`  | /v1/ping/          |                                        |
+| Method | URI                | Data                                          |
+| :----: | ------------------ | --------------------------------------------- |
+| `GET`  | /v1/balance/       |                                               |
+| `POST` | /v1/address/       |                                               |
+| `GET`  | /v1/address/:index |                                               |
+| `POST` | /v1/transfer/      | `[{"amount": 0.1337, "address": "47stn..."}]` |
+| `GET`  | /v1/ping/          |                                               |
 
 ### Responses
 #### GET /v1/balance/
 ```json
 {
-  "total_balance": 0.00097949,
-  "unlocked_balance": 0.00097949
+  "total_balance": 0.00204076,
+  "unlocked_balance": 0.00204076
 }
 ```
 
@@ -49,9 +49,19 @@
 #### POST /v1/transfer/
 ```json
 {
-  "amount": 0.00069696,
-  "fee": 1.046e-05,
-  "tx_hash": "ead52758d68fc1f44e6664e86463dada1f62d7699695a00afcba085c075c2904"
+  "amount": 0.0001312,
+  "data": [
+    {
+      "amount": 0.0001212,
+      "address": "47stnbyV5rqaCuinwxmWHH2qPEQj5PCbkipBYoNvkhxDCkFk9Qo4ijvNF9EfTmG1TTcoCxUuk97GrfnUQReVNYYT6SCqUA8"
+    },
+    {
+      "amount": 1e-05,
+      "address": "46VGoe3bKWTNuJdwNjjr6oGHLVtV1c9QpXFP9M2P22bbZNU7aGmtuLe6PEDRAeoc3L7pSjfRHMmqpSF5M59eWemEQ2kwYuw"
+    }
+  ],
+  "fee": 1.869e-05,
+  "tx_hash": "5ca343fbebde6841b9c653c2ea03d08ab22113fcda1cfa539d3feccbf84321a9"
 }
 ```
 

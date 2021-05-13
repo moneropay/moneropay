@@ -1,14 +1,14 @@
 # MoneroPay API (v1)
 API for receiving, sending and tracking payments in Monero.
 ## Endpoints
-| Method | URI                     | Input                                                                                                |
-| :----: | ----------------------- | ---------------------------------------------------------------------------------------------------- |
-| `GET`  | /v1/balance             |                                                                                                      |
-| `POST` | /v1/receive             | `'amount=123' 'description=desc' 'callback_url=https://callbackurl'`                                 |
-| `GET`  | /v1/receive/:subaddress |                                                                                                      |
-| `POST` | /v1/transfer            | `{"destinations": [{"amount": 1337, "address": "47stn..."}], "callback_url": "https://callbackurl"}` |
-| `GET`  | /v1/transfer/:txhash    |                                                                                                      |
-| `GET`  | /v1/health              |                                                                                                      |
+| Method | URI                    | Input                                                       |
+| :----: | ---------------------- | ----------------------------------------------------------- |
+| `GET`  | /v1/balance             |                                                               |
+| `POST` | /v1/receive             | `'amount=123' 'description=desc'`                             |
+| `GET`  | /v1/receive/:subaddress |                                                               |
+| `POST` | /v1/transfer            | `{"destinations": [{"amount": 1337, "address": "47stn..."}]}` |
+| `GET`  | /v1/transfer/:txhash    |                                                               |
+| `GET`  | /v1/health              |                                                               |
 
 ## Receive
 ### Request
@@ -16,16 +16,15 @@ API for receiving, sending and tracking payments in Monero.
 curl -s -X POST /v1/receive
 	-d 'amount=123' # uint64 (required) - Amount to expect in XMR atomic units.
 	-d 'description=Keep up the good work!' # string - The description for the order.
-	-d 'callback_url' # string url - Url to callback on update.
 ```
 ### Response
 ### 200 (Success)
-```json
+```json5
 {
-	"address": "85dd...", # Address to send payments to.
+	"address": "85dd...", // Address to send payments to.
 	"amount": 123,
 	"description": "Keep up the good work!",
-	"created_at": 1620165990 # Time of order was creation.
+	"created_at": 1620165990 // Time of order was creation.
 }
 ```
 
@@ -35,7 +34,7 @@ curl -s -X GET /v1/receive/{:address}
 ```
 ### Response
 ### 200 (Success)
-```json
+```json5
 {
 	"amount": {
 		"expected": 123,
@@ -43,8 +42,7 @@ curl -s -X GET /v1/receive/{:address}
 	},
 	"complete": false,
 	"description": "Keep up the good work!",
-	"created_at": 1620165990, # Time of order was creation.
-	"updated_at": 1620186597, # Time of last update.
+	"created_at": 1620165990, // Time of order was creation.
 	"transactions": [
 		{
 			"amount": 100,
@@ -64,12 +62,11 @@ curl -s -X GET /v1/receive/{:address}
 ### Request
 ```sh
 curl -s -X POST -H 'Content-Type: application/json' /v1/transfer
-	-d '{"destinations": [{"amount": 1337, "address": "47stn..."}], # (required)
-		"callback_url": "https://localhost/callback"}'
+	-d '{"destinations": [{"amount": 1337, "address": "47stn..."}]}'
 ```
 ### Response
 #### 200 (Success)
-```json
+```json5
 {
 	"amount": 1337,
 	"fee": 87438594,
@@ -90,11 +87,11 @@ curl -s -X GET /v1/transfer/{:tx_hash}
 ```
 ### Response
 #### 200 (Success)
-```json
+```json5
 {
 	"amount": 1337,
 	"fee": 87438594,
-	"state": "completed", # "pending", "completed", "failed"
+	"state": "completed", // "pending", "completed" or "failed"
 	"destinations": [
 		{
 			"amount": 1337,
@@ -117,7 +114,7 @@ curl -s -X GET /v1/health
 ```
 ### Response
 #### 200 (Success)
-```json
+```json5
 {
 	"status": 200,
 	"services": {

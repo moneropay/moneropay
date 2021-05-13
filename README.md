@@ -19,7 +19,7 @@ curl -s -X POST /v1/receive
 ```
 ### Response
 ### 200 (Success)
-```json5
+```jsonc
 {
 	"address": "85dd...", // Address to send payments to.
 	"amount": 123,
@@ -34,7 +34,7 @@ curl -s -X GET /v1/receive/{:address}
 ```
 ### Response
 ### 200 (Success)
-```json5
+```jsonc
 {
 	"amount": {
 		"expected": 123,
@@ -66,7 +66,7 @@ curl -s -X POST -H 'Content-Type: application/json' /v1/transfer
 ```
 ### Response
 #### 200 (Success)
-```json5
+```jsonc
 {
 	"amount": 1337,
 	"fee": 87438594,
@@ -87,7 +87,7 @@ curl -s -X GET /v1/transfer/{:tx_hash}
 ```
 ### Response
 #### 200 (Success)
-```json5
+```jsonc
 {
 	"amount": 1337,
 	"fee": 87438594,
@@ -114,7 +114,7 @@ curl -s -X GET /v1/health
 ```
 ### Response
 #### 200 (Success)
-```json5
+```jsonc
 {
 	"status": 200,
 	"services": {

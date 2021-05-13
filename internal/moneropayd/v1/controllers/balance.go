@@ -18,32 +18,33 @@
  * along with MoneroPay.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package router
+package controllers
 
 import (
-	"log"
+	"encoding/json"
 	"net/http"
-	"time"
 
-	"github.com/gorilla/mux"
+	"gitlab.com/kernal/go-monero/walletrpc"
 
-	v1 "gitlab.com/kernal/moneropay/internal/moneropayd/v1/controllers"
+	"gitlab.com/kernal/moneropay/internal/moneropayd/v1/helpers"
+	"gitlab.com/kernal/moneropay/internal/moneropayd/wallet"
+	"gitlab.com/kernal/moneropay/pkg/v1/models"
 )
 
-func Run(bind string) {
-	r := mux.NewRouter()
-	s1 := r.PathPrefix("/v1").Subrouter()
-	s1.HandleFunc("/health", v1.HealthHandler).Methods("GET", "HEAD")
-	s1.HandleFunc("/balance", v1.BalanceHandler).Methods("GET")
-	s1.HandleFunc("/receive", v1.ReceivePostHandler).Methods("POST")
-	s1.HandleFunc("/receive/{address}", v1.ReceiveGetHandler).Methods("GET")
-	s1.HandleFunc("/transfer", v1.TransferPostHandler).Methods("POST").Headers("Content-Type", "application/json")
-	s1.HandleFunc("/transfer/{tx_hash}", v1.TransferGetHandler).Methods("GET")
-	srv := &http.Server{
-		Handler: r,
-		Addr: bind,
-		WriteTimeout: 15 * time.Second,
-		ReadTimeout: 15 * time.Second,
+func BalanceHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	rpc := wallet.Wallet
+	wallet.Lock()
+	resp, err := rpc.GetBalance(&walletrpc.GetBalanceRequest{})
+	wallet.Unlock()
+	if err != nil {
+		_, werr := walletrpc.GetWalletError(err)
+		helpers.WriteError(w, http.StatusInternalServerError, (*int)(&werr.Code), werr.Message)
+		return
 	}
-	log.Fatal(srv.ListenAndServe())
+	d := models.BalanceGetResponse{
+		TotalBalance: resp.Balance,
+		UnlockedBalance: resp.UnlockedBalance,
+	}
+	json.NewEncoder(w).Encode(d)
 }

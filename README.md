@@ -1,73 +1,130 @@
-# MoneroPay
+# MoneroPay API (v1)
+API for receiving, sending and tracking payments in Monero.
+## Endpoints
+| Method | URI                     | Input                                                                                                |
+| :----: | ----------------------- | ---------------------------------------------------------------------------------------------------- |
+| `GET`  | /v1/balance             |                                                                                                      |
+| `POST` | /v1/receive             | `'amount=123' 'description=desc' 'callback_url=https://callbackurl'`                                 |
+| `GET`  | /v1/receive/:subaddress |                                                                                                      |
+| `POST` | /v1/transfer            | `{"destinations": [{"amount": 1337, "address": "47stn..."}], "callback_url": "https://callbackurl"}` |
+| `GET`  | /v1/transfer/:txhash    |                                                                                                      |
+| `GET`  | /v1/health              |                                                                                                      |
 
-## `moneropayd` - Monero payment API
-
-### Endpoints
-| Method | URI                | Data                                          |
-| :----: | ------------------ | --------------------------------------------- |
-| `GET`  | /v1/balance/       |                                               |
-| `POST` | /v1/address/       |                                               |
-| `GET`  | /v1/address/:index |                                               |
-| `POST` | /v1/transfer/      | `[{"amount": 0.1337, "address": "47stn..."}]` |
-| `GET`  | /v1/ping/          |                                               |
-
-### Responses
-#### GET /v1/balance/
+## Receive
+### Request
+```sh
+curl -s -X POST /v1/receive
+	-d 'amount=123' # uint64 (required) - Amount to expect in XMR atomic units.
+	-d 'description=Keep up the good work!' # string - The description for the order.
+	-d 'callback_url' # string url - Url to callback on update.
+```
+### Response
+### 200 (Success)
 ```json
 {
-  "total_balance": 0.00204076,
-  "unlocked_balance": 0.00204076
+	"address": "85dd...", # Address to send payments to.
+	"amount": 123,
+	"description": "Keep up the good work!",
+	"created_at": 1620165990 # Time of order was creation.
 }
 ```
 
-#### POST /v1/address/
+## Receipt tracking
+```
+curl -s -X GET /v1/receive/{:address}
+```
+### Response
+### 200 (Success)
 ```json
 {
-  "address": "88HjkMjkPnRXnxkwQJPGEj7Jd6TfAqSn5bAiJNrB6J3PYsoTCW4dX6DHRknxizMaRwZ27WPmtYMfwc9RaHrBVQfSHDJn2R7",
-  "index": 22
+	"amount": {
+		"expected": 123,
+		"covered": 100
+	},
+	"complete": false,
+	"description": "Keep up the good work!",
+	"created_at": 1620165990, # Time of order was creation.
+	"updated_at": 1620186597, # Time of last update.
+	"transactions": [
+		{
+			"amount": 100,
+			"confirmations": 8,
+			"double_spend_seen": false,
+			"fee": 21650200000,
+			"height": 153624,
+			"timestamp": 1620186597,
+			"tx_hash": "c36258a276018c3a4bc1f195a7fb530f50cd63a4fa765fb7c6f7f49fc051762a",
+			"unlock_time": 0
+		}
+	]
 }
 ```
 
-#### GET /v1/address/:index
+## Transfer
+### Request
+```sh
+curl -s -X POST -H 'Content-Type: application/json' /v1/transfer
+	-d '{"destinations": [{"amount": 1337, "address": "47stn..."}], # (required)
+		"callback_url": "https://localhost/callback"}'
+```
+### Response
+#### 200 (Success)
 ```json
 {
-  "transfers": [
-    {
-      "address": "85ddLJ1qMmsWwtC9gmFi1S5uuPWKT5puQisQitTqNpwBUgw9gEYTmszLfQXygNUhrSGy8fzq3CEEXFkNdKHFbHWkFE3JS1s",
-      "amount": 0.001,
-      "confirmations": 26140,
-      "double_spend_seen": false,
-      "fee": 1.097e-05,
-      "timestamp": 1614871910,
-      "txid": "6685406e07564bb4bf90553e5a30c0ef2afab4e13393b9f773964fdcf13a39c2",
-      "unlock_time": 0
-    }
-  ]
+	"amount": 1337,
+	"fee": 87438594,
+	"tx_hash": "5ca34...",
+	"destinations": [
+		{
+			"amount": 1337,
+			"address": "47stn..."
+		}
+	]
 }
 ```
 
-#### POST /v1/transfer/
+## Transfer tracking
+### Request
+```sh
+curl -s -X GET /v1/transfer/{:tx_hash}
+```
+### Response
+#### 200 (Success)
 ```json
 {
-  "amount": 0.0001312,
-  "data": [
-    {
-      "amount": 0.0001212,
-      "address": "47stnbyV5rqaCuinwxmWHH2qPEQj5PCbkipBYoNvkhxDCkFk9Qo4ijvNF9EfTmG1TTcoCxUuk97GrfnUQReVNYYT6SCqUA8"
-    },
-    {
-      "amount": 1e-05,
-      "address": "46VGoe3bKWTNuJdwNjjr6oGHLVtV1c9QpXFP9M2P22bbZNU7aGmtuLe6PEDRAeoc3L7pSjfRHMmqpSF5M59eWemEQ2kwYuw"
-    }
-  ],
-  "fee": 1.869e-05,
-  "tx_hash": "5ca343fbebde6841b9c653c2ea03d08ab22113fcda1cfa539d3feccbf84321a9"
+	"amount": 1337,
+	"fee": 87438594,
+	"state": "completed", # "pending", "completed", "failed"
+	"destinations": [
+		{
+			"amount": 1337,
+			"address": "47stn..."
+		}
+	]
+	"confirmations": 8,
+	"double_spend_seen": false,
+	"height": 153624,
+	"timestamp": 1620186597,
+	"unlock_time": 0,
+	"tx_hash": "5ca34...",
 }
 ```
 
-#### GET /v1/ping/
+## Health
+### Request
+```sh
+curl -s -X GET /v1/health
+```
+### Response
+#### 200 (Success)
 ```json
-"pong"
+{
+	"status": 200,
+	"services": {
+		"walletrpc": true,
+		"postgresql": true
+	}
+}
 ```
 
 ### Usage
@@ -76,6 +133,16 @@ $ ./moneropayd -h
 Usage of ./moneropayd:
   -bind string
         Bind address:port for moneropayd (default "localhost:5000")
+  -postgres-database string
+  	Name for PostgreSQL database
+  -postgres-host string
+  	PostgreSQL database address
+  -postgres-password string
+  	Password for PostgreSQL database
+  -postgres-port uint
+  	PostgreSQL database port
+  -postgres-username string
+  	Username for PostgreSQL database
   -rpc-address string
         Wallet RPC server address (default "http://localhost:18082/json_rpc")
   -rpc-password string

@@ -18,32 +18,37 @@
  * along with MoneroPay.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package router
+package wallet
 
 import (
 	"log"
-	"net/http"
-	"time"
+	"sync"
 
-	"github.com/gorilla/mux"
-
-	v1 "gitlab.com/kernal/moneropay/internal/moneropayd/v1/controllers"
+	"github.com/gabstv/httpdigest"
+	"gitlab.com/kernal/go-monero/walletrpc"
 )
 
-func Run(bind string) {
-	r := mux.NewRouter()
-	s1 := r.PathPrefix("/v1").Subrouter()
-	s1.HandleFunc("/health", v1.HealthHandler).Methods("GET", "HEAD")
-	s1.HandleFunc("/balance", v1.BalanceHandler).Methods("GET")
-	s1.HandleFunc("/receive", v1.ReceivePostHandler).Methods("POST")
-	s1.HandleFunc("/receive/{address}", v1.ReceiveGetHandler).Methods("GET")
-	s1.HandleFunc("/transfer", v1.TransferPostHandler).Methods("POST").Headers("Content-Type", "application/json")
-	s1.HandleFunc("/transfer/{tx_hash}", v1.TransferGetHandler).Methods("GET")
-	srv := &http.Server{
-		Handler: r,
-		Addr: bind,
-		WriteTimeout: 15 * time.Second,
-		ReadTimeout: 15 * time.Second,
-	}
-	log.Fatal(srv.ListenAndServe())
+var (
+	Wallet *walletrpc.Client
+	mutex sync.Mutex
+)
+
+func Lock() {
+	log.Println("Locking...")
+	mutex.Lock()
+	log.Println("Locked.")
+}
+
+func Unlock() {
+	log.Println("Unlocking...")
+	mutex.Unlock()
+}
+
+// Initialize the Monero wallet RPC client.
+func Init(RpcAddr string, RpcUser string, RpcPass string) {
+        t := httpdigest.New(RpcUser, RpcPass)
+        Wallet = walletrpc.New(walletrpc.Config{
+                Address: RpcAddr,
+                Transport: t,
+        })
 }

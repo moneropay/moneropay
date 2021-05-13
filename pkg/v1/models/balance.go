@@ -18,19 +18,9 @@
  * along with MoneroPay.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package walletrpc
+package models
 
-import (
-	"github.com/gabstv/httpdigest"
-	"github.com/monero-ecosystem/go-monero-rpc-client/wallet"
-)
-
-// Initialize the Monero wallet RPC client.
-func Init(RpcAddr string, RpcUser string, RpcPass string) wallet.Client {
-        t := httpdigest.New(RpcUser, RpcPass)
-        w := wallet.New(wallet.Config{
-                Address: RpcAddr,
-                Transport: t,
-        })
-	return w
+type BalanceGetResponse struct {
+	TotalBalance uint64 `json:"total_balance"`
+	UnlockedBalance uint64 `json:"unlocked_balance"`
 }

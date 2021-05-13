@@ -18,31 +18,12 @@
  * along with MoneroPay.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package main
+package models
 
-import (
-	"gitlab.com/kernal/moneropay/internal/moneropayd/config"
-	"gitlab.com/kernal/moneropay/internal/moneropayd/database"
-	"gitlab.com/kernal/moneropay/internal/moneropayd/router"
-	"gitlab.com/kernal/moneropay/internal/moneropayd/wallet"
-)
-
-func main() {
-	// Parse command-line arguments and fill the Values struct.
-	config.Init()
-
-	// Initialize Monero wallet RPC.
-	wallet.Init(config.Values.RpcAddr, config.Values.RpcUser, config.Values.RpcPass)
-
-	// Initialize the database.
-	database.Connect(
-		config.Values.PostgresHost, config.Values.PostgresPort,
-		config.Values.PostgresUser, config.Values.PostgresPass,
-		config.Values.PostgresDBName,
-	)
-	defer database.Close()
-	database.Migrate()
-
-	// Start the router.
-	router.Run(config.Values.BindAddr)
+type HealthGetResponse struct {
+	Status int `json:"status"`
+	Services struct {
+		WalletRPC bool `json:"walletrpc"`
+		PostgreSQL bool `json:"postgresql"`
+	} `json:"services"`
 }

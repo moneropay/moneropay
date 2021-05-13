@@ -18,18 +18,20 @@
  * along with MoneroPay.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package router
+package helpers
 
 import (
+	"encoding/json"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
+	"gitlab.com/kernal/moneropay/pkg/v1/models"
 )
 
-func addPingRoutes(rg *gin.RouterGroup) {
-	g := rg.Group("/ping")
-
-	g.GET("/", func(c *gin.Context) {
-		c.JSON(http.StatusOK, "pong")
+func WriteError(w http.ResponseWriter, status int, code *int, message string) {
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(models.ErrorResponse{
+		Status: status,
+		Code: code,
+		Message: message,
 	})
 }

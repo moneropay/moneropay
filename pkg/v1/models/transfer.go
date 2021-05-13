@@ -18,32 +18,35 @@
  * along with MoneroPay.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package router
+package models
 
 import (
-	"log"
-	"net/http"
 	"time"
 
-	"github.com/gorilla/mux"
-
-	v1 "gitlab.com/kernal/moneropay/internal/moneropayd/v1/controllers"
+	"gitlab.com/kernal/go-monero/walletrpc"
 )
 
-func Run(bind string) {
-	r := mux.NewRouter()
-	s1 := r.PathPrefix("/v1").Subrouter()
-	s1.HandleFunc("/health", v1.HealthHandler).Methods("GET", "HEAD")
-	s1.HandleFunc("/balance", v1.BalanceHandler).Methods("GET")
-	s1.HandleFunc("/receive", v1.ReceivePostHandler).Methods("POST")
-	s1.HandleFunc("/receive/{address}", v1.ReceiveGetHandler).Methods("GET")
-	s1.HandleFunc("/transfer", v1.TransferPostHandler).Methods("POST").Headers("Content-Type", "application/json")
-	s1.HandleFunc("/transfer/{tx_hash}", v1.TransferGetHandler).Methods("GET")
-	srv := &http.Server{
-		Handler: r,
-		Addr: bind,
-		WriteTimeout: 15 * time.Second,
-		ReadTimeout: 15 * time.Second,
-	}
-	log.Fatal(srv.ListenAndServe())
+type TransferPostRequest struct {
+	Destinations []walletrpc.Destination `json:"destinations"`
+	// CallbackUrl *string `json:"callback_url"`
+}
+
+type TransferPostResponse struct {
+	Amount uint64 `json:"amount"`
+	Fee uint64 `json:"fee"`
+	TxHash string `json:"tx_hash"`
+	Destinations []walletrpc.Destination `json:"destinations"`
+}
+
+type TransferGetResponse struct {
+	Amount uint64 `json:"amount"`
+	Fee uint64 `json:"fee"`
+	State string `json:"state"`
+	Destinations []walletrpc.Destination `json:"transfer"`
+	Confirmations uint64 `json:"confirmations"`
+	DoubleSpendSeen bool `json:"double_spend_seen"`
+	Height uint64 `json:"height"`
+	Timestamp time.Time `json:"timestamp"`
+	UnlockTime uint64 `json:"unlock_time"`
+	TxHash string `json:"tx_hash"`
 }

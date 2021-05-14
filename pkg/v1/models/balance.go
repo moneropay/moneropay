@@ -18,18 +18,9 @@
  * along with MoneroPay.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package router
+package models
 
-import (
-	"net/http"
-
-	"github.com/gin-gonic/gin"
-)
-
-func addPingRoutes(rg *gin.RouterGroup) {
-	g := rg.Group("/ping")
-
-	g.GET("/", func(c *gin.Context) {
-		c.JSON(http.StatusOK, "pong")
-	})
+type BalanceGetResponse struct {
+	TotalBalance uint64 `json:"total_balance"`
+	UnlockedBalance uint64 `json:"unlocked_balance"`
 }

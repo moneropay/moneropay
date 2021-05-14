@@ -18,31 +18,37 @@
  * along with MoneroPay.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package main
+package wallet
 
 import (
-	"gitlab.com/moneropay/moneropay/internal/moneropayd/config"
-	"gitlab.com/moneropay/moneropay/internal/moneropayd/database"
-	"gitlab.com/moneropay/moneropay/internal/moneropayd/router"
-	"gitlab.com/moneropay/moneropay/internal/moneropayd/wallet"
+	"log"
+	"sync"
+
+	"github.com/gabstv/httpdigest"
+	"gitlab.com/moneropay/go-monero/walletrpc"
 )
 
-func main() {
-	// Parse command-line arguments and fill the Values struct.
-	config.Init()
+var (
+	Wallet *walletrpc.Client
+	mutex sync.Mutex
+)
 
-	// Initialize Monero wallet RPC.
-	wallet.Init(config.Values.RpcAddr, config.Values.RpcUser, config.Values.RpcPass)
+func Lock() {
+	log.Println("Locking...")
+	mutex.Lock()
+	log.Println("Locked.")
+}
 
-	// Initialize the database.
-	database.Connect(
-		config.Values.PostgresHost, config.Values.PostgresPort,
-		config.Values.PostgresUser, config.Values.PostgresPass,
-		config.Values.PostgresDBName,
-	)
-	defer database.Close()
-	database.Migrate()
+func Unlock() {
+	log.Println("Unlocking...")
+	mutex.Unlock()
+}
 
-	// Start the router.
-	router.Run(config.Values.BindAddr)
+// Initialize the Monero wallet RPC client.
+func Init(RpcAddr string, RpcUser string, RpcPass string) {
+        t := httpdigest.New(RpcUser, RpcPass)
+        Wallet = walletrpc.New(walletrpc.Config{
+                Address: RpcAddr,
+                Transport: t,
+        })
 }

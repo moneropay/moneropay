@@ -20,7 +20,7 @@
 
 package config
 
-import "flag"
+import "github.com/namsral/flag"
 
 type Data struct {
 	BindAddr string
@@ -30,6 +30,11 @@ type Data struct {
 	TransferMixin uint64
 	TransferPriority uint
 	TransferUnlockTime uint64
+	PostgresHost string
+	PostgresPort uint
+	PostgresUser string
+	PostgresPass string
+	PostgresDBName string
 }
 
 var Values Data
@@ -42,5 +47,10 @@ func Init() {
 	flag.Uint64Var(&Values.TransferMixin, "transfer-mixin", 8, "Number of outputs from the blockchain to mix with (0 means no mixing)")
 	flag.UintVar(&Values.TransferPriority, "transfer-priority", 0, "Set a priority for transactions")
 	flag.Uint64Var(&Values.TransferUnlockTime, "transfer-unlock-time", 10, "Number of blocks before the monero can be spent (0 to not add a lock)")
+	flag.StringVar(&Values.PostgresHost, "postgres-host", "localhost", "PostgreSQL database address")
+	flag.UintVar(&Values.PostgresPort, "postgres-port", 5432, "PostgreSQL database port")
+	flag.StringVar(&Values.PostgresUser, "postgres-username", "postgres", "Username for PostgreSQL database")
+	flag.StringVar(&Values.PostgresPass, "postgres-password", "", "Password for PostgreSQL database")
+	flag.StringVar(&Values.PostgresDBName, "postgres-database", "moneropay", "Name for PostgreSQL database")
 	flag.Parse()
 }

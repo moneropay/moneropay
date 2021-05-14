@@ -18,19 +18,33 @@
  * along with MoneroPay.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package walletrpc
+package controllers
 
 import (
-	"github.com/gabstv/httpdigest"
-	"github.com/monero-ecosystem/go-monero-rpc-client/wallet"
+	"encoding/json"
+	"net/http"
+
+	"gitlab.com/moneropay/go-monero/walletrpc"
+
+	"gitlab.com/moneropay/moneropay/internal/moneropayd/v1/helpers"
+	"gitlab.com/moneropay/moneropay/internal/moneropayd/wallet"
+	"gitlab.com/moneropay/moneropay/pkg/v1/models"
 )
 
-// Initialize the Monero wallet RPC client.
-func Init(RpcAddr string, RpcUser string, RpcPass string) wallet.Client {
-        t := httpdigest.New(RpcUser, RpcPass)
-        w := wallet.New(wallet.Config{
-                Address: RpcAddr,
-                Transport: t,
-        })
-	return w
+func BalanceHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	rpc := wallet.Wallet
+	wallet.Lock()
+	resp, err := rpc.GetBalance(&walletrpc.GetBalanceRequest{})
+	wallet.Unlock()
+	if err != nil {
+		_, werr := walletrpc.GetWalletError(err)
+		helpers.WriteError(w, http.StatusInternalServerError, (*int)(&werr.Code), werr.Message)
+		return
+	}
+	d := models.BalanceGetResponse{
+		TotalBalance: resp.Balance,
+		UnlockedBalance: resp.UnlockedBalance,
+	}
+	json.NewEncoder(w).Encode(d)
 }

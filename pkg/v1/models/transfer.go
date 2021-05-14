@@ -18,31 +18,35 @@
  * along with MoneroPay.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package main
+package models
 
 import (
-	"gitlab.com/moneropay/moneropay/internal/moneropayd/config"
-	"gitlab.com/moneropay/moneropay/internal/moneropayd/database"
-	"gitlab.com/moneropay/moneropay/internal/moneropayd/router"
-	"gitlab.com/moneropay/moneropay/internal/moneropayd/wallet"
+	"time"
+
+	"gitlab.com/moneropay/go-monero/walletrpc"
 )
 
-func main() {
-	// Parse command-line arguments and fill the Values struct.
-	config.Init()
+type TransferPostRequest struct {
+	Destinations []walletrpc.Destination `json:"destinations"`
+	// CallbackUrl *string `json:"callback_url"`
+}
 
-	// Initialize Monero wallet RPC.
-	wallet.Init(config.Values.RpcAddr, config.Values.RpcUser, config.Values.RpcPass)
+type TransferPostResponse struct {
+	Amount uint64 `json:"amount"`
+	Fee uint64 `json:"fee"`
+	TxHash string `json:"tx_hash"`
+	Destinations []walletrpc.Destination `json:"destinations"`
+}
 
-	// Initialize the database.
-	database.Connect(
-		config.Values.PostgresHost, config.Values.PostgresPort,
-		config.Values.PostgresUser, config.Values.PostgresPass,
-		config.Values.PostgresDBName,
-	)
-	defer database.Close()
-	database.Migrate()
-
-	// Start the router.
-	router.Run(config.Values.BindAddr)
+type TransferGetResponse struct {
+	Amount uint64 `json:"amount"`
+	Fee uint64 `json:"fee"`
+	State string `json:"state"`
+	Destinations []walletrpc.Destination `json:"transfer"`
+	Confirmations uint64 `json:"confirmations"`
+	DoubleSpendSeen bool `json:"double_spend_seen"`
+	Height uint64 `json:"height"`
+	Timestamp time.Time `json:"timestamp"`
+	UnlockTime uint64 `json:"unlock_time"`
+	TxHash string `json:"tx_hash"`
 }

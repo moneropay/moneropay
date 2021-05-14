@@ -18,32 +18,20 @@
  * along with MoneroPay.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package router
+package helpers
 
 import (
-	"log"
+	"encoding/json"
 	"net/http"
-	"time"
 
-	"github.com/gorilla/mux"
-
-	v1 "gitlab.com/moneropay/moneropay/internal/moneropayd/v1/controllers"
+	"gitlab.com/moneropay/moneropay/pkg/v1/models"
 )
 
-func Run(bind string) {
-	r := mux.NewRouter()
-	s1 := r.PathPrefix("/v1").Subrouter()
-	s1.HandleFunc("/health", v1.HealthHandler).Methods("GET", "HEAD")
-	s1.HandleFunc("/balance", v1.BalanceHandler).Methods("GET")
-	s1.HandleFunc("/receive", v1.ReceivePostHandler).Methods("POST")
-	s1.HandleFunc("/receive/{address}", v1.ReceiveGetHandler).Methods("GET")
-	s1.HandleFunc("/transfer", v1.TransferPostHandler).Methods("POST").Headers("Content-Type", "application/json")
-	s1.HandleFunc("/transfer/{tx_hash}", v1.TransferGetHandler).Methods("GET")
-	srv := &http.Server{
-		Handler: r,
-		Addr: bind,
-		WriteTimeout: 15 * time.Second,
-		ReadTimeout: 15 * time.Second,
-	}
-	log.Fatal(srv.ListenAndServe())
+func WriteError(w http.ResponseWriter, status int, code *int, message string) {
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(models.ErrorResponse{
+		Status: status,
+		Code: code,
+		Message: message,
+	})
 }

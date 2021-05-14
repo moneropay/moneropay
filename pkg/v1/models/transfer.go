@@ -23,7 +23,7 @@ package models
 import (
 	"time"
 
-	"gitlab.com/kernal/go-monero/walletrpc"
+	"gitlab.com/moneropay/go-monero/walletrpc"
 )
 
 type TransferPostRequest struct {

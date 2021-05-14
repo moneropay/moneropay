@@ -27,7 +27,7 @@ import (
 
 	"github.com/gorilla/mux"
 
-	v1 "gitlab.com/kernal/moneropay/internal/moneropayd/v1/controllers"
+	v1 "gitlab.com/moneropay/moneropay/internal/moneropayd/v1/controllers"
 )
 
 func Run(bind string) {

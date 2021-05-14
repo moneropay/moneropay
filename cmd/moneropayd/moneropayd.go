@@ -21,10 +21,10 @@
 package main
 
 import (
-	"gitlab.com/kernal/moneropay/internal/moneropayd/config"
-	"gitlab.com/kernal/moneropay/internal/moneropayd/database"
-	"gitlab.com/kernal/moneropay/internal/moneropayd/router"
-	"gitlab.com/kernal/moneropay/internal/moneropayd/wallet"
+	"gitlab.com/moneropay/moneropay/internal/moneropayd/config"
+	"gitlab.com/moneropay/moneropay/internal/moneropayd/database"
+	"gitlab.com/moneropay/moneropay/internal/moneropayd/router"
+	"gitlab.com/moneropay/moneropay/internal/moneropayd/wallet"
 )
 
 func main() {

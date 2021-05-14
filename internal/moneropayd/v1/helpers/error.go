@@ -24,7 +24,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"gitlab.com/kernal/moneropay/pkg/v1/models"
+	"gitlab.com/moneropay/moneropay/pkg/v1/models"
 )
 
 func WriteError(w http.ResponseWriter, status int, code *int, message string) {

@@ -24,11 +24,11 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"gitlab.com/kernal/go-monero/walletrpc"
+	"gitlab.com/moneropay/go-monero/walletrpc"
 
-	"gitlab.com/kernal/moneropay/internal/moneropayd/v1/helpers"
-	"gitlab.com/kernal/moneropay/internal/moneropayd/wallet"
-	"gitlab.com/kernal/moneropay/pkg/v1/models"
+	"gitlab.com/moneropay/moneropay/internal/moneropayd/v1/helpers"
+	"gitlab.com/moneropay/moneropay/internal/moneropayd/wallet"
+	"gitlab.com/moneropay/moneropay/pkg/v1/models"
 )
 
 func BalanceHandler(w http.ResponseWriter, r *http.Request) {

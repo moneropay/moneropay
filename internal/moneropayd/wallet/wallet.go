@@ -25,7 +25,7 @@ import (
 	"sync"
 
 	"github.com/gabstv/httpdigest"
-	"gitlab.com/kernal/go-monero/walletrpc"
+	"gitlab.com/moneropay/go-monero/walletrpc"
 )
 
 var (

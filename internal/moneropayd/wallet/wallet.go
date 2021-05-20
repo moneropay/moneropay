@@ -21,7 +21,6 @@
 package wallet
 
 import (
-	"log"
 	"sync"
 
 	"github.com/gabstv/httpdigest"
@@ -34,13 +33,10 @@ var (
 )
 
 func Lock() {
-	log.Println("Locking...")
 	mutex.Lock()
-	log.Println("Locked.")
 }
 
 func Unlock() {
-	log.Println("Unlocking...")
 	mutex.Unlock()
 }
 

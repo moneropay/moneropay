@@ -28,12 +28,13 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/jackc/pgx/v4"
 	"gitlab.com/moneropay/go-monero/walletrpc"
 
 	"gitlab.com/moneropay/moneropay/internal/moneropayd/wallet"
 	"gitlab.com/moneropay/moneropay/internal/moneropayd/v1/helpers"
-        "gitlab.com/moneropay/moneropay/internal/moneropayd/database"
-        "gitlab.com/moneropay/moneropay/pkg/v1/models"
+	"gitlab.com/moneropay/moneropay/internal/moneropayd/database"
+	"gitlab.com/moneropay/moneropay/pkg/v1/models"
 )
 
 func ReceivePostHandler(w http.ResponseWriter, r *http.Request) {
@@ -64,17 +65,39 @@ func ReceivePostHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	t := time.Now()
 	db := database.DB
-	if _, err := db.Exec(context.Background(),
-	    "INSERT INTO subaddresses (index, address) VALUES ($1, $2)",
-	    resp.AddressIndex, resp.Address); err != nil {
-		helpers.WriteError(w, http.StatusInternalServerError, nil, err.Error())
+	ctx, cancel := context.WithTimeout(r.Context(), 4 * time.Second)
+	var tx pgx.Tx
+	go func() {
+		tx, err = db.Begin(ctx)
+		if err != nil {
+			helpers.WriteError(w, http.StatusInternalServerError, nil, err.Error())
+			return
+		}
+		if _, err = tx.Exec(ctx, "INSERT INTO subaddresses (index, address) VALUES ($1, $2)",
+		    resp.AddressIndex, resp.Address); err != nil {
+			helpers.WriteError(w, http.StatusInternalServerError, nil, err.Error())
+			tx.Rollback(ctx)
+			return
+		}
+		if _, err = tx.Exec(ctx, `INSERT INTO receivers (subaddress_index, expected_amount,
+		   description, callback_url, created_at) VALUES ($1, $2, $3, $4, $5)`,
+		   resp.AddressIndex, amount, description, callbackUrl, t); err != nil {
+			helpers.WriteError(w, http.StatusInternalServerError, nil, err.Error())
+			tx.Rollback(ctx)
+			return
+		}
+		if err = tx.Commit(ctx); err != nil {
+			helpers.WriteError(w, http.StatusInternalServerError, nil, err.Error())
+			return
+		}
+		cancel()
+	}()
+	<-ctx.Done()
+	if err != nil {
 		return
 	}
-	if _, err := db.Exec(context.Background(),
-	    `INSERT INTO receivers (subaddress_index, expected_amount, description,
-	    callback_url, created_at) VALUES ($1, $2, $3, $4, $5)`,
-	    resp.AddressIndex, amount, description, callbackUrl, t); err != nil {
-		helpers.WriteError(w, http.StatusInternalServerError, nil, err.Error())
+	if ret := ctx.Err(); ret != context.Canceled {
+		helpers.WriteError(w, http.StatusGatewayTimeout, nil, "Context timeout exceeded")
 		return
 	}
 	d := models.ReceivePostResponse{
@@ -89,27 +112,37 @@ func ReceivePostHandler(w http.ResponseWriter, r *http.Request) {
 func ReceiveGetHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	address := mux.Vars(r)["address"]
-	db := database.DB
 	var (
 		addressIndex uint64
 		d models.ReceiveGetResponse
 	)
-	/*
-	 * SELECT
-	 *   index,
-	 *   expected_amount,
-	 *   description,
-	 *   created_at
-	 * FROM
-	 *   subaddresses,
-	 *   receivers
-	 * WHERE
-	 *   index = subaddress_index
-	 *   AND address = $1
-	 */
-	err := db.QueryRow(context.Background(), "SELECT index,expected_amount,description,created_at" +
-	    " FROM subaddresses,receivers WHERE index=subaddress_index AND address=$1",
-	    address).Scan(&addressIndex, &d.Amount.Expected, &d.Description, &d.CreatedAt)
+	db := database.DB
+	ctx, cancel := context.WithTimeout(r.Context(), 3 * time.Second)
+	var err error
+	go func() {
+		/*
+		 * SELECT
+		 *   index,
+		 *   expected_amount,
+		 *   description,
+		 *   created_at
+		 * FROM
+		 *   subaddresses,
+		 *   receivers
+		 * WHERE
+		 *   index = subaddress_index
+		 *   AND address = $1
+		 */
+		err = db.QueryRow(ctx, "SELECT index,expected_amount,description,created_at" +
+		    " FROM subaddresses,receivers WHERE index=subaddress_index AND address=$1",
+		    address).Scan(&addressIndex, &d.Amount.Expected, &d.Description, &d.CreatedAt)
+		cancel()
+	}()
+	<-ctx.Done()
+	if ret := ctx.Err(); ret != context.Canceled {
+		helpers.WriteError(w, http.StatusGatewayTimeout, nil, "Context timeout exceeded")
+		return
+	}
 	if err != nil {
 		helpers.WriteError(w, http.StatusInternalServerError, nil, err.Error())
 		return

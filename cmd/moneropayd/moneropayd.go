@@ -21,6 +21,7 @@
 package main
 
 import (
+	"gitlab.com/moneropay/moneropay/internal/moneropayd/callback"
 	"gitlab.com/moneropay/moneropay/internal/moneropayd/config"
 	"gitlab.com/moneropay/moneropay/internal/moneropayd/database"
 	"gitlab.com/moneropay/moneropay/internal/moneropayd/router"
@@ -42,6 +43,9 @@ func main() {
 	)
 	defer database.Close()
 	database.Migrate()
+
+	// Poll and update the database
+	go callback.Run()
 
 	// Start the router.
 	router.Run(config.Values.BindAddr)

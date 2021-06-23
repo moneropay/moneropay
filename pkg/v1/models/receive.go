@@ -25,7 +25,7 @@ import "time"
 type ReceivePostRequest struct {
 	Amount uint64 `json:"amount"`
 	Description string `json:"description"`
-	//CallbackUrl *string `json:"callback_url"`
+	CallbackUrl *string `json:"callback_url"`
 }
 
 type ReceivePostResponse struct {

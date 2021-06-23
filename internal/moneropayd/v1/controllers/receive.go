@@ -38,7 +38,6 @@ import (
 )
 
 func ReceivePostHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	amount, err := strconv.ParseUint(r.FormValue("amount"), 10, 64)
 	if err != nil {
 		helpers.WriteError(w, http.StatusBadRequest, nil, err.Error())
@@ -63,7 +62,6 @@ func ReceivePostHandler(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteError(w, http.StatusInternalServerError, (*int)(&werr.Code), werr.Message)
 		return
 	}
-	t := time.Now()
 	db := database.DB
 	ctx, cancel := context.WithTimeout(r.Context(), 4 * time.Second)
 	var tx pgx.Tx
@@ -80,8 +78,8 @@ func ReceivePostHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if _, err = tx.Exec(ctx, `INSERT INTO receivers (subaddress_index, expected_amount,
-		   description, callback_url, created_at) VALUES ($1, $2, $3, $4, $5)`,
-		   resp.AddressIndex, amount, description, callbackUrl, t); err != nil {
+		   description, callback_url) VALUES ($1, $2, $3, $4)`,
+		   resp.AddressIndex, amount, description, callbackUrl); err != nil {
 			helpers.WriteError(w, http.StatusInternalServerError, nil, err.Error())
 			tx.Rollback(ctx)
 			return
@@ -100,12 +98,14 @@ func ReceivePostHandler(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteError(w, http.StatusGatewayTimeout, nil, "Context timeout exceeded")
 		return
 	}
+	t := time.Now()
 	d := models.ReceivePostResponse{
 		Address: resp.Address,
 		Amount: amount,
 		Description: description,
 		CreatedAt: t,
 	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	json.NewEncoder(w).Encode(d)
 }
 

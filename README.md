@@ -1,21 +1,35 @@
 # MoneroPay API (v1)
 API for receiving, sending and tracking payments in Monero.
 ## Endpoints
-| Method | URI                    | Input                                                       |
-| :----: | ---------------------- | ----------------------------------------------------------- |
-| `GET`  | /v1/balance             |                                                               |
-| `POST` | /v1/receive             | `'amount=123' 'description=desc'`                             |
-| `GET`  | /v1/receive/:subaddress |                                                               |
-| `POST` | /v1/transfer            | `{"destinations": [{"amount": 1337, "address": "47stn..."}]}` |
-| `GET`  | /v1/transfer/:txhash    |                                                               |
-| `GET`  | /v1/health              |                                                               |
+| Method | URI                     | Input                                                           |
+| :----: | ----------------------- | --------------------------------------------------------------- |
+| `GET`  | /v1/balance             |                                                                 |
+| `POST` | /v1/receive             | `'amount=123' 'description=desc' 'callback_url=http://merchant` |
+| `GET`  | /v1/receive/:subaddress |                                                                 |
+| `POST` | /v1/transfer            | `{"destinations": [{"amount": 1337, "address": "47stn..."}]}`   |
+| `GET`  | /v1/transfer/:tx_hash   |                                                                 |
+| `GET`  | /v1/health              |                                                                 |
 
+## Balance
+### Request
+```sh
+curl -s -X GET "${endpoint}/v1/receive/${address}"
+```
+### Response
+### 200 (Success)
+```jsonc
+{
+	"total_balance": 157443303037455077,
+	"unlocked_balance": 157360317826255077
+}
+```
 ## Receive
 ### Request
 ```sh
-curl -s -X POST /v1/receive
+curl -s -X POST "${endpoint}/v1/receive"
 	-d 'amount=123' # uint64 (required) - Amount to expect in XMR atomic units.
 	-d 'description=Keep up the good work!' # string - The description for the order.
+	-d 'callback_url=http://merchant' # string - Callback on incoming transfers.
 ```
 ### Response
 ### 200 (Success)
@@ -29,8 +43,9 @@ curl -s -X POST /v1/receive
 ```
 
 ## Receipt tracking
-```
-curl -s -X GET /v1/receive/{:address}
+### Request
+```sh
+curl -s -X GET "${endpoint}/v1/receive/${address}"
 ```
 ### Response
 ### 200 (Success)
@@ -61,7 +76,7 @@ curl -s -X GET /v1/receive/{:address}
 ## Transfer
 ### Request
 ```sh
-curl -s -X POST -H 'Content-Type: application/json' /v1/transfer
+curl -s -X POST "${endpoint}/v1/transfer" -H 'Content-Type: application/json'
 	-d '{"destinations": [{"amount": 1337, "address": "47stn..."}]}'
 ```
 ### Response
@@ -83,7 +98,7 @@ curl -s -X POST -H 'Content-Type: application/json' /v1/transfer
 ## Transfer tracking
 ### Request
 ```sh
-curl -s -X GET /v1/transfer/{:tx_hash}
+curl -s -X GET "${endpoint}/v1/transfer/${tx_hash}"
 ```
 ### Response
 #### 200 (Success)
@@ -110,7 +125,7 @@ curl -s -X GET /v1/transfer/{:tx_hash}
 ## Health
 ### Request
 ```sh
-curl -s -X GET /v1/health
+curl -s -X GET "${endpoint}/v1/health"
 ```
 ### Response
 #### 200 (Success)

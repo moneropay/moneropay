@@ -37,8 +37,7 @@ func HealthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 2 * time.Second)
 	go func() {
-		db := database.DB
-		if err := db.Ping(ctx); err == nil {
+		if err := database.DB.Ping(ctx); err == nil {
 			d.Services.PostgreSQL = true
 		}
 		cancel()

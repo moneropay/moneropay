@@ -4,7 +4,7 @@ API for receiving, sending and tracking payments in Monero.
 | Method | URI                     | Input                                                           |
 | :----: | ----------------------- | --------------------------------------------------------------- |
 | `GET`  | /v1/balance             |                                                                 |
-| `POST` | /v1/receive             | `'amount=123' 'description=desc' 'callback_url=http://merchant` |
+| `POST` | /v1/receive             | `'amount=123' 'description=desc' 'callback_url=http://merchant'` |
 | `GET`  | /v1/receive/:subaddress |                                                                 |
 | `POST` | /v1/transfer            | `{"destinations": [{"amount": 1337, "address": "47stn..."}]}`   |
 | `GET`  | /v1/transfer/:tx_hash   |                                                                 |

@@ -38,7 +38,7 @@ curl -s -X POST "${endpoint}/v1/receive"
 	"address": "85dd...", // Address to send payments to.
 	"amount": 123,
 	"description": "Keep up the good work!",
-	"created_at": 1620165990 // Time of order was creation.
+	"created_at": 1620165990 // Time of order creation.
 }
 ```
 
@@ -57,7 +57,7 @@ curl -s -X GET "${endpoint}/v1/receive/${address}"
 	},
 	"complete": false,
 	"description": "Keep up the good work!",
-	"created_at": 1620165990, // Time of order was creation.
+	"created_at": 1620165990, // Time of order creation.
 	"transactions": [
 		{
 			"amount": 100,

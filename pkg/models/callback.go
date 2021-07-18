@@ -20,33 +20,17 @@
 
 package models
 
-import (
-	"time"
+import "time"
 
-	"gitlab.com/moneropay/go-monero/walletrpc"
-)
-
-type TransferPostRequest struct {
-	Destinations []walletrpc.Destination `json:"destinations"`
-	// CallbackUrl *string `json:"callback_url"`
-}
-
-type TransferPostResponse struct {
+type CallbackData struct {
 	Amount uint64 `json:"amount"`
 	Fee uint64 `json:"fee"`
+	Description string `json:"description,omitempty"`
 	TxHash string `json:"tx_hash"`
-	Destinations []walletrpc.Destination `json:"destinations"`
-}
-
-type TransferGetResponse struct {
-	Amount uint64 `json:"amount"`
-	Fee uint64 `json:"fee"`
-	State string `json:"state"`
-	Destinations []walletrpc.Destination `json:"transfer"`
+	Address string `json:"address"`
 	Confirmations uint64 `json:"confirmations"`
-	DoubleSpendSeen bool `json:"double_spend_seen"`
+	UnlockTime uint64 `json:"unlock_time"`
 	Height uint64 `json:"height"`
 	Timestamp time.Time `json:"timestamp"`
-	UnlockTime uint64 `json:"unlock_time"`
-	TxHash string `json:"tx_hash"`
+	DoubleSpendSeen bool `json:"double_spend_seen"`
 }

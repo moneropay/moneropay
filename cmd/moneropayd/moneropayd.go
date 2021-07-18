@@ -44,7 +44,7 @@ func main() {
 	defer database.Close()
 	database.Migrate()
 
-	// Poll and update the database
+	// Start the callback handler.
 	go callback.Run()
 
 	// Start the router.

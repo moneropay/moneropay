@@ -27,18 +27,18 @@ import (
 
 	"github.com/gorilla/mux"
 
-	v1 "gitlab.com/moneropay/moneropay/internal/moneropayd/v1/controllers"
+	"gitlab.com/moneropay/moneropay/internal/moneropayd/controllers"
 )
 
 func Run(bind string) {
 	r := mux.NewRouter()
-	s1 := r.PathPrefix("/v1").Subrouter()
-	s1.HandleFunc("/health", v1.HealthHandler).Methods("GET", "HEAD")
-	s1.HandleFunc("/balance", v1.BalanceHandler).Methods("GET")
-	s1.HandleFunc("/receive", v1.ReceivePostHandler).Methods("POST")
-	s1.HandleFunc("/receive/{address}", v1.ReceiveGetHandler).Methods("GET")
-	s1.HandleFunc("/transfer", v1.TransferPostHandler).Methods("POST").Headers("Content-Type", "application/json")
-	s1.HandleFunc("/transfer/{tx_hash}", v1.TransferGetHandler).Methods("GET")
+	r.HandleFunc("/health", controllers.HealthHandler).Methods("GET", "HEAD")
+	r.HandleFunc("/balance", controllers.BalanceHandler).Methods("GET")
+	r.HandleFunc("/receive", controllers.ReceivePostHandler).Methods("POST")
+	r.HandleFunc("/receive/{address}", controllers.ReceiveGetHandler).Methods("GET")
+	r.HandleFunc("/transfer", controllers.TransferPostHandler).Methods("POST").Headers(
+	    "Content-Type", "application/json")
+	r.HandleFunc("/transfer/{tx_hash}", controllers.TransferGetHandler).Methods("GET")
 	srv := &http.Server{
 		Handler: r,
 		Addr: bind,

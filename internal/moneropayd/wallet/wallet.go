@@ -42,9 +42,8 @@ func Unlock() {
 
 // Initialize the Monero wallet RPC client.
 func Init(RpcAddr string, RpcUser string, RpcPass string) {
-        t := httpdigest.New(RpcUser, RpcPass)
         Wallet = walletrpc.New(walletrpc.Config{
                 Address: RpcAddr,
-                Transport: t,
+                Transport: httpdigest.New(RpcUser, RpcPass),
         })
 }

@@ -18,20 +18,34 @@
  * along with MoneroPay.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package helpers
+package models
 
 import (
-	"encoding/json"
-	"net/http"
+	"time"
 
-	"gitlab.com/moneropay/moneropay/pkg/v1/models"
+	"gitlab.com/moneropay/go-monero/walletrpc"
 )
 
-func WriteError(w http.ResponseWriter, status int, code *int, message string) {
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(models.ErrorResponse{
-		Status: status,
-		Code: code,
-		Message: message,
-	})
+type TransferPostRequest struct {
+	Destinations []walletrpc.Destination `json:"destinations"`
+}
+
+type TransferPostResponse struct {
+	Amount uint64 `json:"amount"`
+	Fee uint64 `json:"fee"`
+	TxHash string `json:"tx_hash"`
+	Destinations []walletrpc.Destination `json:"destinations"`
+}
+
+type TransferGetResponse struct {
+	Amount uint64 `json:"amount"`
+	Fee uint64 `json:"fee"`
+	State string `json:"state"`
+	Destinations []walletrpc.Destination `json:"transfer"`
+	Confirmations uint64 `json:"confirmations"`
+	DoubleSpendSeen bool `json:"double_spend_seen"`
+	Height uint64 `json:"height"`
+	Timestamp time.Time `json:"timestamp"`
+	UnlockTime uint64 `json:"unlock_time"`
+	TxHash string `json:"tx_hash"`
 }

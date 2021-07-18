@@ -29,21 +29,24 @@ import (
 	"gitlab.com/moneropay/go-monero/walletrpc"
 
 	"gitlab.com/moneropay/moneropay/internal/moneropayd/config"
-	"gitlab.com/moneropay/moneropay/internal/moneropayd/v1/helpers"
+	"gitlab.com/moneropay/moneropay/internal/moneropayd/helpers"
 	"gitlab.com/moneropay/moneropay/internal/moneropayd/wallet"
-	"gitlab.com/moneropay/moneropay/pkg/v1/models"
+	"gitlab.com/moneropay/moneropay/pkg/models"
 )
 
 func TransferPostHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	rpc := wallet.Wallet
+
+	// Decode json input.
 	var j models.TransferPostRequest
 	if err := json.NewDecoder(r.Body).Decode(&j); err != nil {
 		helpers.WriteError(w, http.StatusBadRequest, nil, err.Error())
 		return
 	}
+
+	// Do a transfer (blocking operation)
 	wallet.Lock()
-	resp, err := rpc.Transfer(&walletrpc.TransferRequest{
+	resp, err := wallet.Wallet.Transfer(&walletrpc.TransferRequest{
 		Destinations: j.Destinations,
 		Priority: walletrpc.Priority(config.Values.TransferPriority),
 		Mixin: config.Values.TransferMixin,
@@ -55,7 +58,7 @@ func TransferPostHandler(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteError(w, http.StatusInternalServerError, (*int)(&werr.Code), werr.Message)
 		return
 	}
-	// TODO: Save the callback to the database and handle it.
+
 	d := models.TransferPostResponse{
 		Amount: resp.Amount,
 		Fee: resp.Fee,
@@ -67,9 +70,10 @@ func TransferPostHandler(w http.ResponseWriter, r *http.Request) {
 
 func TransferGetHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	rpc := wallet.Wallet
+
+	// Get information about transfer (blocking operation)
 	wallet.Lock()
-	resp, err := rpc.GetTransferByTxid(&walletrpc.GetTransferByTxidRequest{
+	resp, err := wallet.Wallet.GetTransferByTxid(&walletrpc.GetTransferByTxidRequest{
 		Txid: mux.Vars(r)["tx_hash"],
 	})
 	wallet.Unlock()
@@ -85,6 +89,7 @@ func TransferGetHandler(w http.ResponseWriter, r *http.Request) {
 	if (resp.Transfer.Type == "out") {
 		resp.Transfer.Type = "completed"
 	}
+
 	d := models.TransferGetResponse{
 		Amount: resp.Transfer.Amount,
 		Fee: resp.Transfer.Fee,

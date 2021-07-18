@@ -20,7 +20,13 @@
 
 package config
 
-import "github.com/namsral/flag"
+import (
+	"strings"
+	"time"
+	"log"
+
+	"github.com/namsral/flag"
+)
 
 type Data struct {
 	BindAddr string
@@ -35,6 +41,7 @@ type Data struct {
 	PostgresUser string
 	PostgresPass string
 	PostgresDBName string
+	Intervals []time.Duration
 }
 
 var Values Data
@@ -49,8 +56,18 @@ func Init() {
 	flag.Uint64Var(&Values.TransferUnlockTime, "transfer-unlock-time", 10, "Number of blocks before the monero can be spent (0 to not add a lock)")
 	flag.StringVar(&Values.PostgresHost, "postgres-host", "localhost", "PostgreSQL database address")
 	flag.UintVar(&Values.PostgresPort, "postgres-port", 5432, "PostgreSQL database port")
-	flag.StringVar(&Values.PostgresUser, "postgres-username", "postgres", "Username for PostgreSQL database")
+	flag.StringVar(&Values.PostgresUser, "postgres-username", "moneropay", "Username for PostgreSQL database")
 	flag.StringVar(&Values.PostgresPass, "postgres-password", "", "Password for PostgreSQL database")
 	flag.StringVar(&Values.PostgresDBName, "postgres-database", "moneropay", "Name for PostgreSQL database")
+	var i string
+	flag.StringVar(&i, "intervals", "1m,5m,15m,30m,1h", "Comma seperated list of callback intervals")
 	flag.Parse()
+	for _, m := range strings.Split(i, ",") {
+		v, err := time.ParseDuration(m)
+		if err != nil {
+			log.Fatal(err)
+		}
+		// TODO: Make sure no values less than 30sec or however long is the thread interval time.
+		Values.Intervals = append(Values.Intervals, v)
+	}
 }

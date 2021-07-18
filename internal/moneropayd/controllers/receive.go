@@ -26,18 +26,21 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+	"log"
 
 	"github.com/gorilla/mux"
 	"github.com/jackc/pgx/v4"
 	"gitlab.com/moneropay/go-monero/walletrpc"
 
 	"gitlab.com/moneropay/moneropay/internal/moneropayd/wallet"
-	"gitlab.com/moneropay/moneropay/internal/moneropayd/v1/helpers"
+	"gitlab.com/moneropay/moneropay/internal/moneropayd/helpers"
 	"gitlab.com/moneropay/moneropay/internal/moneropayd/database"
-	"gitlab.com/moneropay/moneropay/pkg/v1/models"
+	"gitlab.com/moneropay/moneropay/pkg/models"
 )
 
 func ReceivePostHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
 	amount, err := strconv.ParseUint(r.FormValue("amount"), 10, 64)
 	if err != nil {
 		helpers.WriteError(w, http.StatusBadRequest, nil, err.Error())
@@ -53,20 +56,23 @@ func ReceivePostHandler(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteError(w, http.StatusBadRequest, nil, "Callback_url too long")
 		return
 	}
-	rpc := wallet.Wallet
+
+	// Create a subaddress (blocking operation)
 	wallet.Lock()
-	resp, err := rpc.CreateAddress(&walletrpc.CreateAddressRequest{})
+	resp, err := wallet.Wallet.CreateAddress(&walletrpc.CreateAddressRequest{})
 	wallet.Unlock()
 	if err != nil {
 		_, werr := walletrpc.GetWalletError(err)
 		helpers.WriteError(w, http.StatusInternalServerError, (*int)(&werr.Code), werr.Message)
 		return
 	}
-	db := database.DB
-	ctx, cancel := context.WithTimeout(r.Context(), 4 * time.Second)
+
+	// Insert subaddress association to its index into the DB.
 	var tx pgx.Tx
+	ctx, cancel := context.WithTimeout(r.Context(), 4 * time.Second)
 	go func() {
-		tx, err = db.Begin(ctx)
+		defer cancel()
+		tx, err = database.DB.Begin(ctx)
 		if err != nil {
 			helpers.WriteError(w, http.StatusInternalServerError, nil, err.Error())
 			return
@@ -77,9 +83,9 @@ func ReceivePostHandler(w http.ResponseWriter, r *http.Request) {
 			tx.Rollback(ctx)
 			return
 		}
-		if _, err = tx.Exec(ctx, `INSERT INTO receivers (subaddress_index, expected_amount,
-		   description, callback_url) VALUES ($1, $2, $3, $4)`,
-		   resp.AddressIndex, amount, description, callbackUrl); err != nil {
+		if _, err = tx.Exec(ctx, "INSERT INTO receivers (subaddress_index, expected_amount, " +
+		   "description, callback_url, created_at) VALUES ($1, $2, $3, $4, $5)", resp.AddressIndex, amount,
+		   description, callbackUrl, time.Now()); err != nil {
 			helpers.WriteError(w, http.StatusInternalServerError, nil, err.Error())
 			tx.Rollback(ctx)
 			return
@@ -88,7 +94,6 @@ func ReceivePostHandler(w http.ResponseWriter, r *http.Request) {
 			helpers.WriteError(w, http.StatusInternalServerError, nil, err.Error())
 			return
 		}
-		cancel()
 	}()
 	<-ctx.Done()
 	if err != nil {
@@ -98,58 +103,40 @@ func ReceivePostHandler(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteError(w, http.StatusGatewayTimeout, nil, "Context timeout exceeded")
 		return
 	}
-	t := time.Now()
+
 	d := models.ReceivePostResponse{
 		Address: resp.Address,
 		Amount: amount,
 		Description: description,
-		CreatedAt: t,
+		CreatedAt: time.Now(),
 	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	json.NewEncoder(w).Encode(d)
 }
 
 func ReceiveGetHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
 	address := mux.Vars(r)["address"]
-	var (
-		addressIndex uint64
-		d models.ReceiveGetResponse
-	)
-	db := database.DB
-	ctx, cancel := context.WithTimeout(r.Context(), 3 * time.Second)
-	var err error
-	go func() {
-		/*
-		 * SELECT
-		 *   index,
-		 *   expected_amount,
-		 *   description,
-		 *   created_at
-		 * FROM
-		 *   subaddresses,
-		 *   receivers
-		 * WHERE
-		 *   index = subaddress_index
-		 *   AND address = $1
-		 */
-		err = db.QueryRow(ctx, "SELECT index,expected_amount,description,created_at" +
-		    " FROM subaddresses,receivers WHERE index=subaddress_index AND address=$1",
-		    address).Scan(&addressIndex, &d.Amount.Expected, &d.Description, &d.CreatedAt)
-		cancel()
-	}()
-	<-ctx.Done()
-	if ret := ctx.Err(); ret != context.Canceled {
-		helpers.WriteError(w, http.StatusGatewayTimeout, nil, "Context timeout exceeded")
-		return
-	}
+	var addressIndex uint64
+	var d models.ReceiveGetResponse
+
+	// Find 'subaddress_index' in the DB by subaddress.
+	row, err := database.QueryRowWithTimeout(r.Context(), 3 * time.Second,
+	    "SELECT index, expected_amount, description, created_at " +
+	    "FROM subaddresses, receivers " +
+	    "WHERE index=subaddress_index AND address=$1", address)
 	if err != nil {
 		helpers.WriteError(w, http.StatusInternalServerError, nil, err.Error())
 		return
 	}
-	rpc := wallet.Wallet
+	err = row.Scan(&addressIndex, &d.Amount.Expected, &d.Description, &d.CreatedAt)
+	if err != nil {
+		helpers.WriteError(w, http.StatusInternalServerError, nil, err.Error())
+		return
+	}
+	// Get all transfer done on the subaddress (blocking operation)
 	wallet.Lock()
-	resp, err := rpc.GetTransfers(&walletrpc.GetTransfersRequest{
+	resp, err := wallet.Wallet.GetTransfers(&walletrpc.GetTransfersRequest{
 		SubaddrIndices: []uint64{addressIndex},
 		In: true,
 	})
@@ -170,9 +157,18 @@ func ReceiveGetHandler(w http.ResponseWriter, r *http.Request) {
 			TxHash: r1.Txid,
 			UnlockTime: r1.UnlockTime,
 		}
-		d.Amount.Covered += r2.Amount
+		if r1.DoubleSpendSeen == true {
+			log.Println("Double spend attempt detected:", r1.Txid, r1.Address, r1.Timestamp,)
+			continue
+		}
+		if r1.UnlockTime == 0 {
+			d.Amount.Covered.Unlocked += r1.Amount
+		} else {
+			d.Amount.Covered.Locked += r1.Amount
+		}
 		d.Transactions = append(d.Transactions, r2)
 	}
-	d.Complete = d.Amount.Covered >= d.Amount.Expected
+	d.Amount.Covered.Total = d.Amount.Covered.Unlocked + d.Amount.Covered.Locked
+	d.Complete = d.Amount.Covered.Unlocked >= d.Amount.Expected
 	json.NewEncoder(w).Encode(d)
 }

@@ -21,6 +21,7 @@
 package models
 
 type BalanceGetResponse struct {
-	TotalBalance uint64 `json:"total_balance"`
-	UnlockedBalance uint64 `json:"unlocked_balance"`
+	Total uint64 `json:"total"`
+	Unlocked uint64 `json:"unlocked"`
+	Locked uint64 `json:"locked"`
 }

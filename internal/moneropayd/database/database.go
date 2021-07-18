@@ -24,6 +24,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/jackc/pgx/v4/pgxpool"
 )
@@ -44,48 +45,31 @@ func Close() {
 }
 
 func Migrate() {
-	_, err := DB.Exec(context.Background(), `
+	err := ExecWithTimeout(context.Background(), 3 * time.Second, `
 	    CREATE TABLE IF NOT EXISTS metadata (
-	        id			integer UNIQUE,
-		version			text,
-	        last_polled_block	bigint NOT NULL
-	    )`)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-	_, err = DB.Exec(context.Background(),`
-	    INSERT INTO metadata (id, version, last_polled_block) VALUES (1, '0.1.0', 0) ON CONFLICT DO NOTHING`)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-	_, err = DB.Exec(context.Background(), `
+	        key	text UNIQUE NOT NULL,
+	        value	bigint NOT NULL
+	    );
+	    INSERT INTO metadata (key, value) VALUES ('last_height', 0) ON CONFLICT DO NOTHING;
 	    CREATE TABLE IF NOT EXISTS subaddresses (
 	        index	bigint PRIMARY KEY,
 	        address	character(95) UNIQUE NOT NULL CHECK (LENGTH (address) = 95)
-	    )`)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-	_, err = DB.Exec(context.Background(), `
+	    );
 	    CREATE TABLE IF NOT EXISTS receivers (
 	        subaddress_index	bigint PRIMARY KEY REFERENCES subaddresses ON DELETE CASCADE,
 	        expected_amount		bigint NOT NULL CHECK (expected_amount >= 0),
 	        description		character varying(1024),
-		callback_url		character varying(2048) NOT NULL,
-	        created_at		timestamp with time zone DEFAULT CURRENT_TIMESTAMP
-	    )`)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-	_, err = DB.Exec(context.Background(), `
+	        callback_url		character varying(2048) NOT NULL,
+	        created_at		timestamp with time zone
+	    );
 	    CREATE TABLE IF NOT EXISTS failed_callbacks (
-	        id			serial PRIMARY KEY,
-		subaddress_index	bigint REFERENCES subaddresses ON DELETE CASCADE,
-		request_body		text NOT NULL,
-		attempts		smallint DEFAULT 1,
-		next_retry		timestamp with time zone NOT NULL
+	        uid			serial PRIMARY KEY,
+	        subaddress_index	bigint REFERENCES subaddresses ON DELETE CASCADE,
+	        request_body		text NOT NULL,
+	        attempts		smallint DEFAULT 1,
+	        next_retry		timestamp with time zone NOT NULL
 	    )`)
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatal(err)
 	}
 }

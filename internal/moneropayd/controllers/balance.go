@@ -21,43 +21,31 @@
 package controllers
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
-	"time"
 
+	"gitlab.com/moneropay/go-monero/walletrpc"
+
+	"gitlab.com/moneropay/moneropay/internal/moneropayd/helpers"
 	"gitlab.com/moneropay/moneropay/internal/moneropayd/wallet"
-	"gitlab.com/moneropay/moneropay/pkg/v1/models"
-        "gitlab.com/moneropay/moneropay/internal/moneropayd/database"
+	"gitlab.com/moneropay/moneropay/pkg/models"
 )
 
-func HealthHandler(w http.ResponseWriter, r *http.Request) {
-	d := models.HealthGetResponse{
-		Status: http.StatusOK,
-	}
-	ctx, cancel := context.WithTimeout(r.Context(), 2 * time.Second)
-	go func() {
-		if err := database.DB.Ping(ctx); err == nil {
-			d.Services.PostgreSQL = true
-		}
-		cancel()
-	}()
-	<-ctx.Done()
-	rpc := wallet.Wallet
+func BalanceHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
 	wallet.Lock()
-	if _, err := rpc.GetHeight(); err == nil {
-		d.Services.WalletRPC = true
-	}
+	resp, err := wallet.Wallet.GetBalance(&walletrpc.GetBalanceRequest{})
 	wallet.Unlock()
-	if !d.Services.WalletRPC || !d.Services.PostgreSQL {
-		d.Status = http.StatusServiceUnavailable
+	if err != nil {
+		_, werr := walletrpc.GetWalletError(err)
+		helpers.WriteError(w, http.StatusInternalServerError, (*int)(&werr.Code), werr.Message)
+		return
 	}
-	switch r.Method {
-	case http.MethodGet:
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.WriteHeader(d.Status)
-		json.NewEncoder(w).Encode(d)
-	default:
-		w.WriteHeader(d.Status)
+	d := models.BalanceGetResponse{
+		Total: resp.Balance,
+		Unlocked: resp.UnlockedBalance,
+		Locked: resp.Balance - resp.UnlockedBalance,
 	}
+	json.NewEncoder(w).Encode(d)
 }

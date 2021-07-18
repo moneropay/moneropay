@@ -49,7 +49,11 @@ type ReceiveTransaction struct {
 type ReceiveGetResponse struct {
 	Amount struct {
 		Expected uint64 `json:"expected"`
-		Covered uint64 `json:"covered"`
+		Covered struct {
+			Total uint64 `json:"total"`
+			Unlocked uint64 `json:"unlocked"`
+			Locked uint64 `json:"locked"`
+		} `json:"covered"`
 	} `json:"amount"`
 	Complete bool `json:"complete"`
 	Description string `json:"description,omitempty"`

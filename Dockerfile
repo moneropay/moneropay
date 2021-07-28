@@ -8,6 +8,7 @@ RUN go build \
 	cmd/moneropayd/moneropayd.go
 
 FROM scratch
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 WORKDIR /app
 COPY --from=builder /build/moneropayd .
 CMD ["./moneropayd", "-bind=:5000"]

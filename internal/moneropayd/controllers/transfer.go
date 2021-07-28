@@ -54,8 +54,11 @@ func TransferPostHandler(w http.ResponseWriter, r *http.Request) {
 	})
 	wallet.Unlock()
 	if err != nil {
-		_, werr := walletrpc.GetWalletError(err)
-		helpers.WriteError(w, http.StatusInternalServerError, (*int)(&werr.Code), werr.Message)
+		if isWallet, werr := walletrpc.GetWalletError(err); isWallet {
+			helpers.WriteError(w, http.StatusInternalServerError, (*int)(&werr.Code), werr.Message)
+		} else {
+			helpers.WriteError(w, http.StatusBadRequest, nil, err.Error())
+		}
 		return
 	}
 
@@ -78,8 +81,11 @@ func TransferGetHandler(w http.ResponseWriter, r *http.Request) {
 	})
 	wallet.Unlock()
 	if err != nil {
-		_, werr := walletrpc.GetWalletError(err)
-		helpers.WriteError(w, http.StatusInternalServerError, (*int)(&werr.Code), werr.Message)
+		if isWallet, werr := walletrpc.GetWalletError(err); isWallet {
+			helpers.WriteError(w, http.StatusInternalServerError, (*int)(&werr.Code), werr.Message)
+		} else {
+			helpers.WriteError(w, http.StatusBadRequest, nil, err.Error())
+		}
 		return
 	}
 	if (resp.Transfer.Type == "in") {

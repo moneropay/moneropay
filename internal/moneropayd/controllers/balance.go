@@ -38,8 +38,11 @@ func BalanceHandler(w http.ResponseWriter, r *http.Request) {
 	resp, err := wallet.Wallet.GetBalance(&walletrpc.GetBalanceRequest{})
 	wallet.Unlock()
 	if err != nil {
-		_, werr := walletrpc.GetWalletError(err)
-		helpers.WriteError(w, http.StatusInternalServerError, (*int)(&werr.Code), werr.Message)
+		if isWallet, werr := walletrpc.GetWalletError(err); isWallet {
+			helpers.WriteError(w, http.StatusInternalServerError, (*int)(&werr.Code), werr.Message)
+		} else {
+			helpers.WriteError(w, http.StatusBadRequest, nil, err.Error())
+		}
 		return
 	}
 	d := models.BalanceGetResponse{

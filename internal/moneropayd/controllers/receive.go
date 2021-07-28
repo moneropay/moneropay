@@ -62,8 +62,11 @@ func ReceivePostHandler(w http.ResponseWriter, r *http.Request) {
 	resp, err := wallet.Wallet.CreateAddress(&walletrpc.CreateAddressRequest{})
 	wallet.Unlock()
 	if err != nil {
-		_, werr := walletrpc.GetWalletError(err)
-		helpers.WriteError(w, http.StatusInternalServerError, (*int)(&werr.Code), werr.Message)
+		if isWallet, werr := walletrpc.GetWalletError(err); isWallet {
+			helpers.WriteError(w, http.StatusInternalServerError, (*int)(&werr.Code), werr.Message)
+		} else {
+			helpers.WriteError(w, http.StatusBadRequest, nil, err.Error())
+		}
 		return
 	}
 
@@ -142,8 +145,11 @@ func ReceiveGetHandler(w http.ResponseWriter, r *http.Request) {
 	})
 	wallet.Unlock()
 	if err != nil {
-		_, werr := walletrpc.GetWalletError(err)
-		helpers.WriteError(w, http.StatusInternalServerError, (*int)(&werr.Code), werr.Message)
+		if isWallet, werr := walletrpc.GetWalletError(err); isWallet {
+			helpers.WriteError(w, http.StatusInternalServerError, (*int)(&werr.Code), werr.Message)
+		} else {
+			helpers.WriteError(w, http.StatusBadRequest, nil, err.Error())
+		}
 		return
 	}
 	for _, r1 := range resp.In {

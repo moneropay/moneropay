@@ -4,6 +4,8 @@ API for receiving, sending and tracking Monero payments.
 MoneroPay provides a simple backend service for merchants or individuals accepting XMR.
 Optionally, it will check for new incoming transfers and callback provided endpoint.
 
+[Here](https://donate.kernal.eu) is an example donation page.
+
 ## Endpoints
 | Method | URI                  | Input                                                                      |
 | :----: | -------------------- | -------------------------------------------------------------------------- |

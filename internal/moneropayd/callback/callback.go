@@ -42,7 +42,13 @@ type callbackDest struct {
 }
 
 func doCallback(url, payload string) error {
-	req, _ := http.NewRequest("POST", url, bytes.NewBuffer([]byte(payload)))
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(payload)))
+	if err != nil {
+		// Callback url can't be parsed.
+		// This can't be resolved in the future, don't retry.
+		log.Println(err)
+		return nil
+	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "MoneroPay/1.0.0")
 	c := &http.Client{Timeout: time.Second * 3}

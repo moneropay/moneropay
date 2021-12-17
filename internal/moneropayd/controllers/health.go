@@ -35,18 +35,22 @@ func HealthHandler(w http.ResponseWriter, r *http.Request) {
 	d := models.HealthGetResponse{
 		Status: http.StatusOK,
 	}
-	if err := database.ExecWithTimeout(context.Background(), 2 * time.Second,
+	if err := database.ExecWithTimeout(r.Context(), 2 * time.Second,
 	    "SELECT value FROM metadata WHERE key = 'last_height'"); err == nil {
 		d.Services.PostgreSQL = true
 	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 2 * time.Second)
 	wallet.Lock()
-	if _, err := wallet.Wallet.GetHeight(); err == nil {
+	if _, err := wallet.Wallet.GetHeight(ctx); err == nil {
 		d.Services.WalletRPC = true
 	}
+	defer cancel()
 	wallet.Unlock()
 	if !d.Services.WalletRPC || !d.Services.PostgreSQL {
 		d.Status = http.StatusServiceUnavailable
 	}
+
 	switch r.Method {
 	case http.MethodGet:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")

@@ -101,12 +101,14 @@ func retryFailedCallbacks() {
 func fetchTransfers(h *uint64) {
 	// Get last checked block height from DB.
 	// Get new transfers from the wallet-rpc.
+	ctx, cancel := context.WithTimeout(context.Background(), 3 * time.Second)
 	wallet.Lock()
-	resp, err := wallet.Wallet.GetTransfers(&walletrpc.GetTransfersRequest{
+	resp, err := wallet.Wallet.GetTransfers(ctx, &walletrpc.GetTransfersRequest{
 		In: true,
 		FilterByHeight: true,
 		MinHeight: *h,
 	})
+	defer cancel()
 	wallet.Unlock()
 	if err != nil {
 		log.Println(err)

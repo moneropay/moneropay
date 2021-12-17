@@ -21,7 +21,9 @@
 package controllers
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -46,16 +48,21 @@ func TransferPostHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Do a transfer (blocking operation)
 	wallet.Lock()
-	resp, err := wallet.Wallet.Transfer(&walletrpc.TransferRequest{
+	ctx, cancel := context.WithTimeout(r.Context(), 3 * time.Second)
+	resp, err := wallet.Wallet.Transfer(ctx, &walletrpc.TransferRequest{
 		Destinations: j.Destinations,
 		Priority: walletrpc.Priority(config.Values.TransferPriority),
 		Mixin: config.Values.TransferMixin,
 		UnlockTime: config.Values.TransferUnlockTime,
 	})
+	defer cancel()
 	wallet.Unlock()
 	if err != nil {
 		if isWallet, werr := walletrpc.GetWalletError(err); isWallet {
-			helpers.WriteError(w, http.StatusInternalServerError, (*int)(&werr.Code), werr.Message)
+			helpers.WriteError(w, http.StatusInternalServerError,
+				(*int)(&werr.Code), werr.Message)
+		} else if errors.Is(err, context.DeadlineExceeded) {
+			helpers.WriteError(w, http.StatusGatewayTimeout, nil, err.Error())
 		} else {
 			helpers.WriteError(w, http.StatusBadRequest, nil, err.Error())
 		}
@@ -75,19 +82,24 @@ func TransferGetHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
 	// Get information about transfer (blocking operation)
+	ctx, cancel := context.WithTimeout(r.Context(), 3 * time.Second)
 	wallet.Lock()
-	resp, err := wallet.Wallet.GetTransferByTxid(&walletrpc.GetTransferByTxidRequest{
+	resp, err := wallet.Wallet.GetTransferByTxid(ctx, &walletrpc.GetTransferByTxidRequest{
 		Txid: mux.Vars(r)["tx_hash"],
 	})
+	defer cancel()
 	wallet.Unlock()
 	if err != nil {
 		if isWallet, werr := walletrpc.GetWalletError(err); isWallet {
-			helpers.WriteError(w, http.StatusInternalServerError, (*int)(&werr.Code), werr.Message)
+			helpers.WriteError(w, http.StatusInternalServerError,
+				(*int)(&werr.Code), werr.Message)
+		} else if errors.Is(err, context.DeadlineExceeded) {
+			helpers.WriteError(w, http.StatusGatewayTimeout, nil, err.Error())
 		} else {
 			helpers.WriteError(w, http.StatusBadRequest, nil, err.Error())
 		}
 		return
-	}
+        }
 	if (resp.Transfer.Type == "in") {
 		helpers.WriteError(w, http.StatusBadRequest, nil, "Not an outgoing transaction")
 		return

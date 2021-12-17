@@ -23,6 +23,7 @@ package controllers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -58,12 +59,17 @@ func ReceivePostHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create a subaddress (blocking operation)
+	ctx, cancel := context.WithTimeout(r.Context(), 3 * time.Second)
 	wallet.Lock()
-	resp, err := wallet.Wallet.CreateAddress(&walletrpc.CreateAddressRequest{})
+	resp, err := wallet.Wallet.CreateAddress(ctx, &walletrpc.CreateAddressRequest{})
+	defer cancel()
 	wallet.Unlock()
 	if err != nil {
 		if isWallet, werr := walletrpc.GetWalletError(err); isWallet {
-			helpers.WriteError(w, http.StatusInternalServerError, (*int)(&werr.Code), werr.Message)
+			helpers.WriteError(w, http.StatusInternalServerError,
+				(*int)(&werr.Code), werr.Message)
+		} else if errors.Is(err, context.DeadlineExceeded) {
+			helpers.WriteError(w, http.StatusGatewayTimeout, nil, err.Error())
 		} else {
 			helpers.WriteError(w, http.StatusBadRequest, nil, err.Error())
 		}
@@ -72,7 +78,7 @@ func ReceivePostHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Insert subaddress association to its index into the DB.
 	var tx pgx.Tx
-	ctx, cancel := context.WithTimeout(r.Context(), 4 * time.Second)
+	ctx, cancel = context.WithTimeout(r.Context(), 4 * time.Second)
 	go func() {
 		defer cancel()
 		tx, err = database.DB.Begin(ctx)
@@ -138,15 +144,20 @@ func ReceiveGetHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Get all transfer done on the subaddress (blocking operation)
+	ctx, cancel := context.WithTimeout(r.Context(), 3 * time.Second)
 	wallet.Lock()
-	resp, err := wallet.Wallet.GetTransfers(&walletrpc.GetTransfersRequest{
+	resp, err := wallet.Wallet.GetTransfers(ctx, &walletrpc.GetTransfersRequest{
 		SubaddrIndices: []uint64{addressIndex},
 		In: true,
 	})
+	defer cancel()
 	wallet.Unlock()
 	if err != nil {
 		if isWallet, werr := walletrpc.GetWalletError(err); isWallet {
-			helpers.WriteError(w, http.StatusInternalServerError, (*int)(&werr.Code), werr.Message)
+			helpers.WriteError(w, http.StatusInternalServerError,
+				(*int)(&werr.Code), werr.Message)
+		} else if errors.Is(err, context.DeadlineExceeded) {
+			helpers.WriteError(w, http.StatusGatewayTimeout, nil, err.Error())
 		} else {
 			helpers.WriteError(w, http.StatusBadRequest, nil, err.Error())
 		}

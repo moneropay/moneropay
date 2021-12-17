@@ -21,8 +21,11 @@
 package controllers
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"time"
 
 	"gitlab.com/moneropay/go-monero/walletrpc"
 
@@ -34,12 +37,17 @@ import (
 func BalanceHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
+	ctx, cancel := context.WithTimeout(r.Context(), 3 * time.Second)
 	wallet.Lock()
-	resp, err := wallet.Wallet.GetBalance(&walletrpc.GetBalanceRequest{})
+	resp, err := wallet.Wallet.GetBalance(ctx, &walletrpc.GetBalanceRequest{})
+	defer cancel()
 	wallet.Unlock()
 	if err != nil {
 		if isWallet, werr := walletrpc.GetWalletError(err); isWallet {
-			helpers.WriteError(w, http.StatusInternalServerError, (*int)(&werr.Code), werr.Message)
+			helpers.WriteError(w, http.StatusInternalServerError,
+				(*int)(&werr.Code), werr.Message)
+		} else if errors.Is(err, context.DeadlineExceeded) {
+			helpers.WriteError(w, http.StatusGatewayTimeout, nil, err.Error())
 		} else {
 			helpers.WriteError(w, http.StatusBadRequest, nil, err.Error())
 		}

@@ -23,7 +23,6 @@ package controllers
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"time"
 
@@ -46,8 +45,8 @@ func BalanceHandler(w http.ResponseWriter, r *http.Request) {
 		if isWallet, werr := walletrpc.GetWalletError(err); isWallet {
 			helpers.WriteError(w, http.StatusInternalServerError,
 				(*int)(&werr.Code), werr.Message)
-		} else if errors.Is(err, context.DeadlineExceeded) {
-			helpers.WriteError(w, http.StatusGatewayTimeout, nil, err.Error())
+		} else if cerr := ctx.Err(); cerr != nil {
+			helpers.WriteError(w, http.StatusGatewayTimeout, nil, cerr.Error())
 		} else {
 			helpers.WriteError(w, http.StatusBadRequest, nil, err.Error())
 		}

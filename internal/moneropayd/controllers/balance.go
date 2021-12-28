@@ -21,11 +21,14 @@
 package controllers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"gitlab.com/moneropay/go-monero/walletrpc"
 
+	"gitlab.com/moneropay/moneropay/internal/moneropayd/config"
 	"gitlab.com/moneropay/moneropay/internal/moneropayd/helpers"
 	"gitlab.com/moneropay/moneropay/internal/moneropayd/wallet"
 	"gitlab.com/moneropay/moneropay/pkg/models"
@@ -33,13 +36,19 @@ import (
 
 func BalanceHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Server", "MoneroPay/" + config.Version)
 
+	ctx, cancel := context.WithTimeout(r.Context(), 3 * time.Second)
 	wallet.Lock()
-	resp, err := wallet.Wallet.GetBalance(&walletrpc.GetBalanceRequest{})
+	resp, err := wallet.Wallet.GetBalance(ctx, &walletrpc.GetBalanceRequest{})
+	defer cancel()
 	wallet.Unlock()
 	if err != nil {
 		if isWallet, werr := walletrpc.GetWalletError(err); isWallet {
-			helpers.WriteError(w, http.StatusInternalServerError, (*int)(&werr.Code), werr.Message)
+			helpers.WriteError(w, http.StatusInternalServerError,
+				(*int)(&werr.Code), werr.Message)
+		} else if cerr := ctx.Err(); cerr != nil {
+			helpers.WriteError(w, http.StatusGatewayTimeout, nil, cerr.Error())
 		} else {
 			helpers.WriteError(w, http.StatusBadRequest, nil, err.Error())
 		}

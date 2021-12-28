@@ -50,7 +50,7 @@ func doCallback(url, payload string) error {
 		return nil
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "MoneroPay/1.0.2")
+	req.Header.Set("User-Agent", "MoneroPay/" + config.Version)
 	c := &http.Client{Timeout: time.Second * 3}
 	if _, err := c.Do(req); err != nil {
 		return err
@@ -101,12 +101,14 @@ func retryFailedCallbacks() {
 func fetchTransfers(h *uint64) {
 	// Get last checked block height from DB.
 	// Get new transfers from the wallet-rpc.
+	ctx, cancel := context.WithTimeout(context.Background(), 3 * time.Second)
 	wallet.Lock()
-	resp, err := wallet.Wallet.GetTransfers(&walletrpc.GetTransfersRequest{
+	resp, err := wallet.Wallet.GetTransfers(ctx, &walletrpc.GetTransfersRequest{
 		In: true,
 		FilterByHeight: true,
 		MinHeight: *h,
 	})
+	defer cancel()
 	wallet.Unlock()
 	if err != nil {
 		log.Println(err)

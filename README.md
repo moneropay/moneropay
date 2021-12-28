@@ -1,8 +1,8 @@
-# MoneroPay API
-API for receiving, sending and tracking Monero payments.
+# MoneroPay
+Backend service for receiving, sending and tracking Monero payments.
 
-MoneroPay provides a simple backend service for merchants or individuals accepting XMR.
-Optionally, it will check for new incoming transfers and callback provided endpoint.
+MoneroPay provides a simple API for merchants or individuals accepting XMR.
+Optionally, it will check for new incoming transfers and callback the provided endpoint.
 
 [Here](https://donate.kernal.eu) is an example donation page.
 
@@ -16,13 +16,13 @@ Optionally, it will check for new incoming transfers and callback provided endpo
 | `POST` | /transfer            | `{"destinations": [{"amount": 1337000000, "address": "47stn..."}]}`        |
 | `GET`  | /transfer/:tx_hash   |                                                                            |
 
-## Balance
-### Request
+### Balance
+#### Request
 ```sh
 curl -s -X GET "${endpoint}/balance"
 ```
-### Response
-### 200 (Success)
+#### Response
+##### 200 (Success)
 ```jsonc
 {
   "total": 2513444800,
@@ -31,13 +31,13 @@ curl -s -X GET "${endpoint}/balance"
 }
 ```
 
-## Health
-### Request
+### Health
+#### Request
 ```sh
 curl -s -X GET "${endpoint}/health"
 ```
-### Response
-#### 200 (Success)
+#### Response
+##### 200 (Success)
 ```jsonc
 {
   "status": 200,
@@ -48,16 +48,16 @@ curl -s -X GET "${endpoint}/health"
 }
 ```
 
-## Receive
-### Request
+### Receive
+#### Request
 ```sh
 curl -s -X POST "${endpoint}/receive"
   -d 'amount=123000000' # uint64 (required) - Amount to expect in XMR atomic units.
   -d 'description=Server expenses' # string - The description for the order.
   -d 'callback_url=http://merchant' # string - Callback on incoming transfers.
 ```
-### Response
-### 200 (Success)
+#### Response
+##### 200 (Success)
 ```jsonc
 {
   "address": "84WsptnLmjTYQjm52SMkhQWsepprkcchNguxdyLkURTSW1WLo3tShTnCRvepijbc2X8GAKPGxJK9hfQhLHzoKSxh7y8Yqrg",
@@ -67,13 +67,13 @@ curl -s -X POST "${endpoint}/receive"
 }
 ```
 
-## Receive tracking
-### Request
+### Receive tracking
+#### Request
 ```sh
 curl -s -X GET "${endpoint}/receive/${address}"
 ```
-### Response
-### 200 (Success)
+#### Response
+##### 200 (Success)
 ```jsonc
 {
   "amount": {
@@ -102,15 +102,15 @@ curl -s -X GET "${endpoint}/receive/${address}"
 }
 ```
 
-## Transfer
-### Request
+### Transfer
+#### Request
 ```sh
 curl -s -X POST "${endpoint}/transfer" \
 	-H 'Content-Type: application/json' \
 	-d '{"destinations": [{"amount": 1337000000, "address": "47stn..."}]}'
 ```
-### Response
-#### 200 (Success)
+#### Response
+##### 200 (Success)
 ```jsonc
 {
   "amount": 1337000000,
@@ -125,13 +125,13 @@ curl -s -X POST "${endpoint}/transfer" \
 }
 ```
 
-## Transfer tracking
-### Request
+### Transfer tracking
+#### Request
 ```sh
 curl -s -X GET "${endpoint}/transfer/${tx_hash}"
 ```
-### Response
-#### 200 (Success)
+#### Response
+##### 200 (Success)
 ```jsonc
 {
   "amount": 79990000,
@@ -152,7 +152,7 @@ curl -s -X GET "${endpoint}/transfer/${tx_hash}"
 }
 ```
 
-## Callback payload
+### Callback payload
 ```jsonc
 {
   "amount": 200000000,
@@ -168,7 +168,7 @@ curl -s -X GET "${endpoint}/transfer/${tx_hash}"
 }
 ```
 
-### Usage
+## Usage
 ```
 $ ./moneropayd -h
 Usage of ./moneropayd:
@@ -186,6 +186,7 @@ Usage of ./moneropayd:
   -transfer-priority=0: Set a priority for transactions
   -transfer-unlock-time=10: Number of blocks before the monero can be spent (0 to not add a lock)
 ```
+Environment variables are also supported.
 ```sh
 #!/bin/sh
 export RPC_ADDRESS='http://localhost:18083/json_rpc'
@@ -194,3 +195,9 @@ export RPC_PASSWORD='s3cure'
 export POSTGRES_PASSWORD='s3cure'
 ./moneropayd
 ```
+See [here](https://gitlab.com/moneropay/docker-moneropay) for an example docker-compose setup for MoneroPay + monero-wallet-rpc + PostgreSQL.
+
+## Contributing
+Submit issues and merge requests only on [GitLab](https://gitlab.com/moneropay/moneropay/).\
+Alternatively, you can send us patch files via email at [moneropay@kernal.eu](mailto:moneropay@kernal.eu).\
+For development related discussions and questions join [#moneropay:kernal.eu](https://matrix.to/#/#moneropay:kernal.eu).

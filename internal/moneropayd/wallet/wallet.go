@@ -21,6 +21,7 @@
 package wallet
 
 import (
+	"net/http"
 	"sync"
 
 	"github.com/gabstv/httpdigest"
@@ -44,6 +45,8 @@ func Unlock() {
 func Init(RpcAddr string, RpcUser string, RpcPass string) {
         Wallet = walletrpc.New(walletrpc.Config{
                 Address: RpcAddr,
-                Transport: httpdigest.New(RpcUser, RpcPass),
-        })
+		Client: &http.Client{
+			Transport: httpdigest.New(RpcUser, RpcPass),
+		},
+	})
 }

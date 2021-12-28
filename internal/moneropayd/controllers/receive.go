@@ -32,6 +32,7 @@ import (
 	"github.com/jackc/pgx/v4"
 	"gitlab.com/moneropay/go-monero/walletrpc"
 
+	"gitlab.com/moneropay/moneropay/internal/moneropayd/config"
 	"gitlab.com/moneropay/moneropay/internal/moneropayd/wallet"
 	"gitlab.com/moneropay/moneropay/internal/moneropayd/helpers"
 	"gitlab.com/moneropay/moneropay/internal/moneropayd/database"
@@ -40,6 +41,7 @@ import (
 
 func ReceivePostHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Server", "MoneroPay/" + config.Version)
 
 	amount, err := strconv.ParseUint(r.FormValue("amount"), 10, 64)
 	if err != nil {
@@ -58,12 +60,17 @@ func ReceivePostHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create a subaddress (blocking operation)
+	ctx, cancel := context.WithTimeout(r.Context(), 3 * time.Second)
 	wallet.Lock()
-	resp, err := wallet.Wallet.CreateAddress(&walletrpc.CreateAddressRequest{})
+	resp, err := wallet.Wallet.CreateAddress(ctx, &walletrpc.CreateAddressRequest{})
+	defer cancel()
 	wallet.Unlock()
 	if err != nil {
 		if isWallet, werr := walletrpc.GetWalletError(err); isWallet {
-			helpers.WriteError(w, http.StatusInternalServerError, (*int)(&werr.Code), werr.Message)
+			helpers.WriteError(w, http.StatusInternalServerError,
+				(*int)(&werr.Code), werr.Message)
+		} else if cerr := ctx.Err(); cerr != nil {
+			helpers.WriteError(w, http.StatusGatewayTimeout, nil, cerr.Error())
 		} else {
 			helpers.WriteError(w, http.StatusBadRequest, nil, err.Error())
 		}
@@ -72,7 +79,7 @@ func ReceivePostHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Insert subaddress association to its index into the DB.
 	var tx pgx.Tx
-	ctx, cancel := context.WithTimeout(r.Context(), 4 * time.Second)
+	ctx, cancel = context.WithTimeout(r.Context(), 4 * time.Second)
 	go func() {
 		defer cancel()
 		tx, err = database.DB.Begin(ctx)
@@ -118,6 +125,7 @@ func ReceivePostHandler(w http.ResponseWriter, r *http.Request) {
 
 func ReceiveGetHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Server", "MoneroPay/" + config.Version)
 
 	address := mux.Vars(r)["address"]
 	var addressIndex uint64
@@ -138,15 +146,20 @@ func ReceiveGetHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Get all transfer done on the subaddress (blocking operation)
+	ctx, cancel := context.WithTimeout(r.Context(), 3 * time.Second)
 	wallet.Lock()
-	resp, err := wallet.Wallet.GetTransfers(&walletrpc.GetTransfersRequest{
+	resp, err := wallet.Wallet.GetTransfers(ctx, &walletrpc.GetTransfersRequest{
 		SubaddrIndices: []uint64{addressIndex},
 		In: true,
 	})
+	defer cancel()
 	wallet.Unlock()
 	if err != nil {
 		if isWallet, werr := walletrpc.GetWalletError(err); isWallet {
-			helpers.WriteError(w, http.StatusInternalServerError, (*int)(&werr.Code), werr.Message)
+			helpers.WriteError(w, http.StatusInternalServerError,
+				(*int)(&werr.Code), werr.Message)
+		} else if cerr := ctx.Err(); cerr != nil {
+			helpers.WriteError(w, http.StatusGatewayTimeout, nil, cerr.Error())
 		} else {
 			helpers.WriteError(w, http.StatusBadRequest, nil, err.Error())
 		}

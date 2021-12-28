@@ -26,12 +26,15 @@ import (
 	"net/http"
 	"time"
 
+	"gitlab.com/moneropay/moneropay/internal/moneropayd/config"
 	"gitlab.com/moneropay/moneropay/internal/moneropayd/wallet"
 	"gitlab.com/moneropay/moneropay/pkg/models"
         "gitlab.com/moneropay/moneropay/internal/moneropayd/database"
 )
 
 func HealthHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Server", "MoneroPay/" + config.Version)
+
 	d := models.HealthGetResponse{
 		Status: http.StatusOK,
 	}

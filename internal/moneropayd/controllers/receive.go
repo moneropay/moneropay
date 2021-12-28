@@ -32,6 +32,7 @@ import (
 	"github.com/jackc/pgx/v4"
 	"gitlab.com/moneropay/go-monero/walletrpc"
 
+	"gitlab.com/moneropay/moneropay/internal/moneropayd/config"
 	"gitlab.com/moneropay/moneropay/internal/moneropayd/wallet"
 	"gitlab.com/moneropay/moneropay/internal/moneropayd/helpers"
 	"gitlab.com/moneropay/moneropay/internal/moneropayd/database"
@@ -40,6 +41,7 @@ import (
 
 func ReceivePostHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Server", "MoneroPay/" + config.Version)
 
 	amount, err := strconv.ParseUint(r.FormValue("amount"), 10, 64)
 	if err != nil {
@@ -123,6 +125,7 @@ func ReceivePostHandler(w http.ResponseWriter, r *http.Request) {
 
 func ReceiveGetHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Server", "MoneroPay/" + config.Version)
 
 	address := mux.Vars(r)["address"]
 	var addressIndex uint64

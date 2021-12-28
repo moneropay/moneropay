@@ -50,7 +50,7 @@ func doCallback(url, payload string) error {
 		return nil
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "MoneroPay/1.0.2")
+	req.Header.Set("User-Agent", "MoneroPay/" + config.Version)
 	c := &http.Client{Timeout: time.Second * 3}
 	if _, err := c.Do(req); err != nil {
 		return err

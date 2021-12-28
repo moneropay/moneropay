@@ -28,6 +28,7 @@ import (
 
 	"gitlab.com/moneropay/go-monero/walletrpc"
 
+	"gitlab.com/moneropay/moneropay/internal/moneropayd/config"
 	"gitlab.com/moneropay/moneropay/internal/moneropayd/helpers"
 	"gitlab.com/moneropay/moneropay/internal/moneropayd/wallet"
 	"gitlab.com/moneropay/moneropay/pkg/models"
@@ -35,6 +36,7 @@ import (
 
 func BalanceHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Server", "MoneroPay/" + config.Version)
 
 	ctx, cancel := context.WithTimeout(r.Context(), 3 * time.Second)
 	wallet.Lock()

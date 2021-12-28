@@ -37,6 +37,7 @@ import (
 
 func TransferPostHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Server", "MoneroPay/" + config.Version)
 
 	// Decode json input.
 	var j models.TransferPostRequest
@@ -79,6 +80,7 @@ func TransferPostHandler(w http.ResponseWriter, r *http.Request) {
 
 func TransferGetHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Server", "MoneroPay/" + config.Version)
 
 	// Get information about transfer (blocking operation)
 	ctx, cancel := context.WithTimeout(r.Context(), 3 * time.Second)

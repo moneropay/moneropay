@@ -69,7 +69,11 @@ func Init() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		// TODO: Make sure no values less than 30sec or however long is the thread interval time.
+
+		if v < 30 * time.Second {
+			log.Println("Callback interval cannot be shorter than 30s, defaulting to 30s.")
+			v, _ = time.ParseDuration("30s")
+		}
 		Values.Intervals = append(Values.Intervals, v)
 	}
 }

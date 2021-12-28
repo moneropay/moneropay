@@ -44,6 +44,8 @@ type Data struct {
 	Intervals []time.Duration
 }
 
+const Version = "1.1.0"
+
 var Values Data
 
 func Init() {

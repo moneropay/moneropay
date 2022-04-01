@@ -1,8 +1,7 @@
 /*
- * Copyright (C) 2021 Laurynas Četyrkinas <stnby@kernal.eu>
- * Copyright (C) 2021 İrem Kuyucu <siren@kernal.eu>
- *
- * This file is part of MoneroPay.
+ * MoneroPay is a Monero payment processor.
+ * Copyright (C) 2022 Laurynas Četyrkinas <stnby@kernal.eu>
+ * Copyright (C) 2022 İrem Kuyucu <siren@kernal.eu>
  *
  * MoneroPay is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,19 +17,14 @@
  * along with MoneroPay.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package models
+package main
 
-import "time"
+import (
+	"gitlab.com/moneropay/moneropay/internal/daemon"
+	"gitlab.com/moneropay/moneropay/internal/server"
+)
 
-type CallbackData struct {
-	Amount uint64 `json:"amount"`
-	Fee uint64 `json:"fee"`
-	Description string `json:"description,omitempty"`
-	TxHash string `json:"tx_hash"`
-	Address string `json:"address"`
-	Confirmations uint64 `json:"confirmations"`
-	UnlockTime uint64 `json:"unlock_time"`
-	Height uint64 `json:"height"`
-	Timestamp time.Time `json:"timestamp"`
-	DoubleSpendSeen bool `json:"double_spend_seen"`
+func main() {
+	daemon.Run()
+	server.Run()
 }

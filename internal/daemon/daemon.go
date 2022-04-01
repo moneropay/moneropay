@@ -1,8 +1,7 @@
 /*
- * Copyright (C) 2021 Laurynas Četyrkinas <stnby@kernal.eu>
- * Copyright (C) 2021 İrem Kuyucu <siren@kernal.eu>
- *
- * This file is part of MoneroPay.
+ * MoneroPay is a Monero payment processor.
+ * Copyright (C) 2022 Laurynas Četyrkinas <stnby@kernal.eu>
+ * Copyright (C) 2022 İrem Kuyucu <siren@kernal.eu>
  *
  * MoneroPay is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,10 +17,24 @@
  * along with MoneroPay.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package models
+package daemon
 
-type BalanceGetResponse struct {
-	Total uint64 `json:"total"`
-	Unlocked uint64 `json:"unlocked"`
-	Locked uint64 `json:"locked"`
+import "log"
+
+const Version = "2.0.0"
+
+func init() {
+	loadConfig()
+	walletConnect()
+	if err := pdbConnect(); err != nil {
+		log.Fatal(err)
+	}
+	if err := pdbMigrate(); err != nil {
+		log.Fatal(err)
+	}
+	readCallbackLastHeight()
+}
+
+func Run() {
+	go callbackRunner()
 }

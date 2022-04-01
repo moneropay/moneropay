@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2021 Laurynas Četyrkinas <stnby@kernal.eu>
- * Copyright (C) 2021 İrem Kuyucu <siren@kernal.eu>
+ * Copyright (C) 2022 Laurynas Četyrkinas <stnby@kernal.eu>
+ * Copyright (C) 2022 İrem Kuyucu <siren@kernal.eu>
  *
  * This file is part of MoneroPay.
  *
@@ -18,20 +18,17 @@
  * along with MoneroPay.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package helpers
+package controller
 
 import (
 	"encoding/json"
 	"net/http"
 
-	"gitlab.com/moneropay/moneropay/pkg/models"
+	"gitlab.com/moneropay/moneropay/internal/daemon"
 )
 
-func WriteError(w http.ResponseWriter, status int, code *int, message string) {
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(models.ErrorResponse{
-		Status: status,
-		Code: code,
-		Message: message,
-	})
+func HealthHandler(w http.ResponseWriter, r *http.Request) {
+	resp := daemon.Health()
+	w.WriteHeader(resp.Status)
+	json.NewEncoder(w).Encode(resp)
 }

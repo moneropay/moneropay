@@ -1,8 +1,7 @@
 /*
- * Copyright (C) 2021 Laurynas Četyrkinas <stnby@kernal.eu>
- * Copyright (C) 2021 İrem Kuyucu <siren@kernal.eu>
- *
- * This file is part of MoneroPay.
+ * MoneroPay is a Monero payment processor.
+ * Copyright (C) 2022 Laurynas Četyrkinas <stnby@kernal.eu>
+ * Copyright (C) 2022 İrem Kuyucu <siren@kernal.eu>
  *
  * MoneroPay is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,35 +17,24 @@
  * along with MoneroPay.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package wallet
+package server
 
 import (
 	"net/http"
-	"sync"
 
-	"github.com/gabstv/httpdigest"
-	"gitlab.com/moneropay/go-monero/walletrpc"
+	"gitlab.com/moneropay/moneropay/internal/daemon"
 )
 
-var (
-	Wallet *walletrpc.Client
-	mutex sync.Mutex
-)
-
-func Lock() {
-	mutex.Lock()
+func middlewareServerHeader(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Server", "MoneroPay/" + daemon.Version)
+		next.ServeHTTP(w, r)
+	})
 }
 
-func Unlock() {
-	mutex.Unlock()
-}
-
-// Initialize the Monero wallet RPC client.
-func Init(RpcAddr string, RpcUser string, RpcPass string) {
-        Wallet = walletrpc.New(walletrpc.Config{
-                Address: RpcAddr,
-		Client: &http.Client{
-			Transport: httpdigest.New(RpcUser, RpcPass),
-		},
+func middlewareXMoneroPayAddressHeader(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-MoneroPay-Address", daemon.WalletPrimaryAddress)
+		next.ServeHTTP(w, r)
 	})
 }

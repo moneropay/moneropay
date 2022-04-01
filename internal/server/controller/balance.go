@@ -1,8 +1,7 @@
 /*
- * Copyright (C) 2021 Laurynas Četyrkinas <stnby@kernal.eu>
- * Copyright (C) 2021 İrem Kuyucu <siren@kernal.eu>
- *
- * This file is part of MoneroPay.
+ * MoneroPay is a Monero payment processor.
+ * Copyright (C) 2022 Laurynas Četyrkinas <stnby@kernal.eu>
+ * Copyright (C) 2022 İrem Kuyucu <siren@kernal.eu>
  *
  * MoneroPay is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,10 +17,29 @@
  * along with MoneroPay.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package models
+package controller
 
-type ErrorResponse struct {
-	Status int `json:"status"`
-	Code *int `json:"code,omitempty"`
-	Message string `json:"message"`
+import (
+	"encoding/json"
+	"net/http"
+
+	"gitlab.com/moneropay/moneropay/internal/daemon"
+)
+
+type balanceResponse struct {
+	Total uint64 `json:"total"`
+	Unlocked uint64 `json:"unlocked"`
+}
+
+func BalanceHandler(w http.ResponseWriter, r *http.Request) {
+	resp, err := daemon.Balance([]uint64{0})
+	if err != nil {
+		writeComplexError(w, err)
+		return
+	}
+	b := balanceResponse{
+		Total: resp.Balance,
+		Unlocked: resp.UnlockedBalance,
+	}
+	json.NewEncoder(w).Encode(b)
 }

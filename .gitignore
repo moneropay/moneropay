@@ -1,3 +1,5 @@
 /moneropay
+/data/
+/.env
 /start.sh
 *.log

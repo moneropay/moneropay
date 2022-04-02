@@ -20,8 +20,8 @@
 package main
 
 import (
-	"gitlab.com/moneropay/moneropay/internal/daemon"
-	"gitlab.com/moneropay/moneropay/internal/server"
+	"gitlab.com/moneropay/moneropay/v2/internal/daemon"
+	"gitlab.com/moneropay/moneropay/v2/internal/server"
 )
 
 func main() {

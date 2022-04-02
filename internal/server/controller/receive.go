@@ -27,7 +27,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"gitlab.com/moneropay/moneropay/internal/daemon"
+	"gitlab.com/moneropay/moneropay/v2/internal/daemon"
 )
 
 type receivePostRequest struct {

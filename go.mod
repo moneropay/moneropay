@@ -1,4 +1,4 @@
-module gitlab.com/moneropay/moneropay
+module gitlab.com/moneropay/moneropay/v2
 
 go 1.17
 

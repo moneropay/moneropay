@@ -33,8 +33,8 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
-	"gitlab.com/moneropay/moneropay/internal/daemon"
-	"gitlab.com/moneropay/moneropay/internal/server/controller"
+	"gitlab.com/moneropay/moneropay/v2/internal/daemon"
+	"gitlab.com/moneropay/moneropay/v2/internal/server/controller"
 )
 
 func initRouter() *chi.Mux {

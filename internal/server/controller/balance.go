@@ -23,7 +23,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"gitlab.com/moneropay/moneropay/internal/daemon"
+	"gitlab.com/moneropay/moneropay/v2/internal/daemon"
 )
 
 type balanceResponse struct {

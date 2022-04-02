@@ -198,7 +198,6 @@ export RPC_PASSWORD='s3cure'
 export POSTGRESQL='postgresql://moneropay:s3cret@localhost:5432/moneropay'
 ./moneropayd
 ```
-See [here](https://gitlab.com/moneropay/docker-moneropay) for an example docker-compose setup for MoneroPay + monero-wallet-rpc + PostgreSQL.
 
 ## Contributing
 Submit issues and merge requests only on [GitLab](https://gitlab.com/moneropay/moneropay/).\

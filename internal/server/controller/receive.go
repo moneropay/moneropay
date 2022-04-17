@@ -66,6 +66,7 @@ func ReceivePostHandler(w http.ResponseWriter, r *http.Request) {
 	a, t, err := daemon.Receive(j.Amount, j.Description, j.CallbackUrl)
 	if err != nil {
 		writeComplexError(w, err)
+		return
 	}
 	d := receivePostResponse{
 		Address: a,

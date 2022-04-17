@@ -41,7 +41,7 @@ func Receive(xmr uint64, desc, callbackUrl string) (string, time.Time, error) {
 		if err != nil {
 			return
 		}
-		if _, err = tx.Exec(ctx, "INSERT INTO subaddresses (index, address) VALUES ($1, $2)",
+		if _, err = tx.Exec(ctx, "INSERT INTO subaddresses (address_index, address) VALUES ($1, $2)",
 		    resp.AddressIndex, resp.Address); err != nil {
 			tx.Rollback(ctx)
 			return
@@ -65,8 +65,8 @@ func Receive(xmr uint64, desc, callbackUrl string) (string, time.Time, error) {
 
 func GetReceiver(address string) (pgx.Row, error) {
 	row, err := pdbQueryRow(context.Background(), 3 * time.Second,
-	    "SELECT index, expected_amount, description, created_at " +
-	    "FROM subaddresses, receivers WHERE index=subaddress_index " +
+	    "SELECT address_index, expected_amount, description, created_at " +
+	    "FROM subaddresses, receivers WHERE address_index=subaddress_index " +
 	    "AND address=$1", address)
 	if err != nil {
 		return nil, err

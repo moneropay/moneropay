@@ -99,7 +99,7 @@ func pdbMigrate() error {
 	    );
 	    INSERT INTO metadata (key, value) VALUES ('last_height', 0) ON CONFLICT DO NOTHING;
 	    CREATE TABLE IF NOT EXISTS subaddresses (
-	        index		bigint PRIMARY KEY,
+	        address_index	bigint PRIMARY KEY,
 	        address		character(95) UNIQUE NOT NULL,
 	        used_until	bigint
 	    );

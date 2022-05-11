@@ -27,55 +27,58 @@ import (
 	"gitlab.com/moneropay/go-monero/walletrpc"
 )
 
-func Receive(xmr uint64, desc, callbackUrl string) (string, time.Time, error) {
-	resp, err := createAddress(&walletrpc.CreateAddressRequest{})
+func Receive(ctx context.Context, xmr uint64, desc, callbackUrl string) (string, time.Time, error) {
+	resp, err := createAddress(ctx, &walletrpc.CreateAddressRequest{})
 	if err != nil {
 		return "", time.Time{}, err
 	}
 	t := time.Now()
 	var tx pgx.Tx
-	ctx, cancel := context.WithTimeout(context.Background(), 4 * time.Second)
-	go func() {
-		defer cancel()
-		tx, err = pdb.Begin(ctx)
-		if err != nil {
-			return
-		}
-		if _, err = tx.Exec(ctx, "INSERT INTO subaddresses (index, address) VALUES ($1, $2)",
-		    resp.AddressIndex, resp.Address); err != nil {
-			tx.Rollback(ctx)
-			return
-		}
-		if _, err = tx.Exec(ctx, "INSERT INTO receivers (subaddress_index, expected_amount, " +
-		    "description, callback_url, created_at) VALUES ($1, $2, $3, $4, $5)", resp.AddressIndex, xmr,
-		    desc, callbackUrl, t); err != nil {
-			tx.Rollback(ctx)
-			return
-		}
-		if err = tx.Commit(ctx); err != nil {
-			return
-		}
-	}()
-	<-ctx.Done()
+	tx, err = pdb.Begin(ctx)
 	if err != nil {
 		return "", time.Time{}, err
 	}
-	return resp.Address, t, nil
-}
-
-func GetReceiver(address string) (pgx.Row, error) {
-	row, err := pdbQueryRow(context.Background(), 3 * time.Second,
-	    "SELECT index, expected_amount, description, created_at " +
-	    "FROM subaddresses, receivers WHERE index=subaddress_index " +
-	    "AND address=$1", address)
-	if err != nil {
-		return nil, err
+	if _, err = tx.Exec(ctx, "INSERT INTO subaddresses (address_index, address) VALUES ($1, $2)",
+	    resp.AddressIndex, resp.Address); err != nil {
+		tx.Rollback(ctx)
+		return "", time.Time{}, err
 	}
-	return row, nil
+	if _, err = tx.Exec(ctx, "INSERT INTO receivers (subaddress_index, expected_amount, " +
+	    "description, callback_url, created_at) VALUES ($1, $2, $3, $4, $5)",
+	    resp.AddressIndex, xmr, desc, callbackUrl, t); err != nil {
+		tx.Rollback(ctx)
+		return "", time.Time{}, err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return "", time.Time{}, err
+	}
+	return resp.Address, t, err
 }
 
-func GetReceived(index, min, max uint64) ([]walletrpc.Transfer, error) {
-	resp, err := GetTransfers(&walletrpc.GetTransfersRequest{
+type Receiver struct {
+	Index, Expected uint64
+	Description string
+	CreatedAt time.Time
+}
+
+func GetReceiver(ctx context.Context, address string) (Receiver, error) {
+	type ret struct {resp Receiver; err error}
+	c := make(chan ret)
+	go func() {
+		var r ret
+		row := pdb.QueryRow(ctx, "SELECT address_index, expected_amount, description, created_at " +
+		    "FROM subaddresses, receivers WHERE address_index=subaddress_index AND address=$1", address)
+		r.err = row.Scan(&r.resp.Index, &r.resp.Expected, &r.resp.Description, &r.resp.CreatedAt)
+		c <- r
+	}()
+	select {
+		case <-ctx.Done(): return Receiver{}, ctx.Err()
+		case r := <-c: return r.resp, r.err
+	}
+}
+
+func GetReceived(ctx context.Context, index, min, max uint64) ([]walletrpc.Transfer, error) {
+	resp, err := GetTransfers(ctx, &walletrpc.GetTransfersRequest{
 		SubaddrIndices: []uint64{index},
 		In: true,
 		FilterByHeight: (min > 0 || max > 0),

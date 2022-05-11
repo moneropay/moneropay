@@ -45,6 +45,8 @@ func initRouter() *chi.Mux {
 	r.Use(middlewareXMoneroPayAddressHeader)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+	// TODO: Make this value configurable
+	r.Use(middleware.Timeout(10 * time.Second))
 	r.Get("/health", controller.HealthHandler)
 	r.Get("/balance", controller.BalanceHandler)
 	r.Post("/receive", controller.ReceivePostHandler)
@@ -58,6 +60,8 @@ func Run() {
 	h2s := &http2.Server{}
 	srv := &http.Server{
 		Addr: daemon.Config.BindAddr,
+		WriteTimeout: 30 * time.Second,
+		ReadTimeout: 30 * time.Second,
 		Handler: h2c.NewHandler(initRouter(), h2s),
 	}
 	serverCtx, serverStopCtx := context.WithCancel(context.Background())

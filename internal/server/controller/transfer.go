@@ -60,7 +60,7 @@ func TransferPostHandler(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, nil, err.Error())
 		return
 	}
-	resp, err := daemon.Transfer(&walletrpc.TransferRequest{
+	resp, err := daemon.Transfer(r.Context(), &walletrpc.TransferRequest{
 		Destinations: j.Destinations,
 		Priority: walletrpc.Priority(daemon.Config.TransferPriority),
 		Mixin: daemon.Config.TransferMixin,
@@ -81,7 +81,7 @@ func TransferPostHandler(w http.ResponseWriter, r *http.Request) {
 
 func TransferGetHandler(w http.ResponseWriter, r *http.Request) {
 	txHash := chi.URLParam(r, "tx_hash")
-	resp, err := daemon.GetTransferByTxid(&walletrpc.GetTransferByTxidRequest{
+	resp, err := daemon.GetTransferByTxid(r.Context(), &walletrpc.GetTransferByTxidRequest{
 		Txid: txHash,
 	})
 	if err != nil {

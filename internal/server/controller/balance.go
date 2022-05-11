@@ -32,7 +32,7 @@ type balanceResponse struct {
 }
 
 func BalanceHandler(w http.ResponseWriter, r *http.Request) {
-	resp, err := daemon.Balance([]uint64{0})
+	resp, err := daemon.Balance(r.Context(), []uint64{0})
 	if err != nil {
 		writeComplexError(w, err)
 		return
@@ -43,3 +43,18 @@ func BalanceHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	json.NewEncoder(w).Encode(b)
 }
+/*
+func slowfunc(ctx context.Context) error {
+	c := make(chan error)
+	go func() {
+		time.Sleep(6 * time.Second)
+		c <- errors.New("Not really an error.")
+
+	}()
+	var err error
+	select {
+		case <-ctx.Done(): err = ctx.Err()
+		case err = <-c:
+	}
+	return err
+}*/

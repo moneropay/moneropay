@@ -24,7 +24,6 @@ import (
 	"log"
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/gabstv/httpdigest"
 	"gitlab.com/moneropay/go-monero/walletrpc"
@@ -35,9 +34,7 @@ var wMutex sync.Mutex
 var WalletPrimaryAddress string
 
 func readWalletPrimaryAddress() {
-	ctx, cancel := context.WithTimeout(context.Background(), 3 * time.Second)
-	resp, err := wallet.GetAddress(ctx, &walletrpc.GetAddressRequest{AddressIndex: []uint64{0}})
-	defer cancel()
+	resp, err := wallet.GetAddress(context.Background(), &walletrpc.GetAddressRequest{AddressIndex: []uint64{0}})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -54,62 +51,37 @@ func walletConnect() {
 	readWalletPrimaryAddress()
 }
 
-func Balance(indices []uint64) (*walletrpc.GetBalanceResponse, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3 * time.Second)
+func Balance(ctx context.Context, indices []uint64) (*walletrpc.GetBalanceResponse, error) {
 	wMutex.Lock()
 	resp, err := wallet.GetBalance(ctx, &walletrpc.GetBalanceRequest{AddressIndices: indices})
-	defer cancel()
 	wMutex.Unlock()
-	if err != nil {
-		return resp, err
-	}
-	return resp, nil
+	return resp, err
 }
 
-func Transfer(r *walletrpc.TransferRequest) (*walletrpc.TransferResponse, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3 * time.Second)
+func Transfer(ctx context.Context, r *walletrpc.TransferRequest) (*walletrpc.TransferResponse, error) {
 	wMutex.Lock()
 	resp, err := wallet.Transfer(ctx, r)
-	defer cancel()
 	wMutex.Unlock()
-	if err != nil {
-		return nil, err
-	}
 	return resp, err
 }
 
-func GetTransfers(r *walletrpc.GetTransfersRequest) (*walletrpc.GetTransfersResponse, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3 * time.Second)
+func GetTransfers(ctx context.Context, r *walletrpc.GetTransfersRequest) (*walletrpc.GetTransfersResponse, error) {
 	wMutex.Lock()
 	resp, err := wallet.GetTransfers(ctx, r)
-	defer cancel()
 	wMutex.Unlock()
-	if err != nil {
-		return nil, err
-	}
 	return resp, err
 }
 
-func GetTransferByTxid(r *walletrpc.GetTransferByTxidRequest) (*walletrpc.GetTransferByTxidResponse, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3 * time.Second)
+func GetTransferByTxid(ctx context.Context, r *walletrpc.GetTransferByTxidRequest) (*walletrpc.GetTransferByTxidResponse, error) {
 	wMutex.Lock()
 	resp, err := wallet.GetTransferByTxid(ctx, r)
-	defer cancel()
 	wMutex.Unlock()
-	if err != nil {
-		return nil, err
-	}
 	return resp, err
 }
 
-func createAddress(r *walletrpc.CreateAddressRequest) (*walletrpc.CreateAddressResponse, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3 * time.Second)
+func createAddress(ctx context.Context, r *walletrpc.CreateAddressRequest) (*walletrpc.CreateAddressResponse, error) {
 	wMutex.Lock()
 	resp, err := wallet.CreateAddress(ctx, r)
-	defer cancel()
 	wMutex.Unlock()
-	if err != nil {
-		return nil, err
-	}
-	return resp, nil
+	return resp, err
 }

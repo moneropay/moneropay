@@ -19,7 +19,11 @@
 
 package daemon
 
-import "log"
+import (
+	"context"
+	"log"
+	"time"
+)
 
 const Version = "2.0.0"
 
@@ -29,10 +33,14 @@ func init() {
 	if err := pdbConnect(); err != nil {
 		log.Fatal(err)
 	}
-	if err := pdbMigrate(); err != nil {
+	ctx, c1 := context.WithTimeout(context.Background(), 10 * time.Second)
+	defer c1()
+	if err := pdbMigrate(ctx); err != nil {
 		log.Fatal(err)
 	}
-	readCallbackLastHeight()
+	ctx, c2 := context.WithTimeout(context.Background(), 10 * time.Second)
+	defer c2()
+	readCallbackLastHeight(ctx)
 }
 
 func Run() {

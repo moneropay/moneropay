@@ -63,9 +63,10 @@ func ReceivePostHandler(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, nil, err.Error())
 		return
 	}
-	a, t, err := daemon.Receive(j.Amount, j.Description, j.CallbackUrl)
+	a, t, err := daemon.Receive(r.Context(), j.Amount, j.Description, j.CallbackUrl)
 	if err != nil {
 		writeComplexError(w, err)
+		return
 	}
 	d := receivePostResponse{
 		Address: a,
@@ -99,22 +100,17 @@ func ReceiveGetHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-
+	ctx := r.Context()
 	// Get data for address from DB.
-	row, err := daemon.GetReceiver(a)
+	recv, err := daemon.GetReceiver(ctx, a)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, nil, err.Error())
 		return
 	}
-	var i uint64
 	var d receiveGetResponse
-	if row.Scan(&i, &d.Amount.Expected, &d.Description, &d.CreatedAt) != nil {
-		writeError(w, http.StatusInternalServerError, nil, err.Error())
-		return
-	}
-
+	d.Amount.Expected = recv.Expected; d.Description = recv.Description; d.CreatedAt = recv.CreatedAt
 	// Get balance for address from WalletRPC.
-	resp, err := daemon.Balance([]uint64{i})
+	resp, err := daemon.Balance(ctx, []uint64{recv.Index})
 	if err != nil {
 		writeComplexError(w, err)
 		return
@@ -122,8 +118,7 @@ func ReceiveGetHandler(w http.ResponseWriter, r *http.Request) {
 	d.Amount.Covered.Total = resp.PerSubaddress[0].Balance
 	d.Amount.Covered.Unlocked = resp.PerSubaddress[0].UnlockedBalance
 	d.Complete = d.Amount.Covered.Unlocked >= d.Amount.Expected
-
-	tx, err := daemon.GetReceived(i, min, max)
+	tx, err := daemon.GetReceived(ctx, recv.Index, min, max)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, nil, err.Error())
 		return

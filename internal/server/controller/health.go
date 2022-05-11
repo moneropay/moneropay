@@ -28,7 +28,7 @@ import (
 )
 
 func HealthHandler(w http.ResponseWriter, r *http.Request) {
-	resp := daemon.Health()
+	resp := daemon.Health(r.Context())
 	w.WriteHeader(resp.Status)
 	json.NewEncoder(w).Encode(resp)
 }

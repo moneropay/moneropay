@@ -21,7 +21,6 @@ package daemon
 
 import (
 	"context"
-	"log"
 	"time"
 )
 
@@ -30,14 +29,10 @@ const Version = "2.0.0"
 func init() {
 	loadConfig()
 	walletConnect()
-	if err := pdbConnect(); err != nil {
-		log.Fatal(err)
-	}
+	pdbConnect()
 	ctx, c1 := context.WithTimeout(context.Background(), 10 * time.Second)
 	defer c1()
-	if err := pdbMigrate(ctx); err != nil {
-		log.Fatal(err)
-	}
+	pdbMigrate(ctx)
 	ctx, c2 := context.WithTimeout(context.Background(), 10 * time.Second)
 	defer c2()
 	readCallbackLastHeight(ctx)

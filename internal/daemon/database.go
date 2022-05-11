@@ -21,19 +21,21 @@ package daemon
 
 import (
 	"context"
+	"log"
 
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 var pdb *pgxpool.Pool
 
-func pdbConnect() error {
+func pdbConnect() {
 	var err error
-	pdb, err = pgxpool.Connect(context.Background(), Config.postgresCS);
-	return err
+	if pdb, err = pgxpool.Connect(context.Background(), Config.postgresCS); err != nil {
+		log.Fatal(err)
+	}
 }
 
-func pdbMigrate(ctx context.Context) error {
+func pdbMigrate(ctx context.Context) {
 	c := make(chan error)
 	go func() {
 		_, err := pdb.Exec(ctx, `
@@ -56,7 +58,7 @@ func pdbMigrate(ctx context.Context) error {
 		c <- err
 	}()
 	select {
-		case <-ctx.Done(): return ctx.Err()
-		case err := <-c: return err
+		case <-ctx.Done(): log.Fatal(ctx.Err())
+		case err := <-c: log.Fatal(err)
 	}
 }

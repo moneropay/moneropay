@@ -68,13 +68,15 @@ var callbackLastHeight uint64
 var lastHeightUpdated bool
 
 func readCallbackLastHeight(ctx context.Context) {
+	c := make(chan error)
 	go func() {
 		row := pdb.QueryRow(ctx, "SELECT height FROM last_block_height")
-		if err := row.Scan(&callbackLastHeight); err != nil {
-			log.Fatal(err)
-		}
+		c <- row.Scan(&callbackLastHeight)
 	}()
-	<-ctx.Done()
+	select {
+		case <-ctx.Done(): log.Fatal(ctx.Err())
+		case err := <-c: log.Fatal(err)
+	}
 }
 
 func saveCallbackLastHeight(ctx context.Context) error {

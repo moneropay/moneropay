@@ -29,12 +29,10 @@ const Version = "2.0.0"
 func init() {
 	loadConfig()
 	walletConnect()
+	pdbMigrate()
 	pdbConnect()
-	ctx, c1 := context.WithTimeout(context.Background(), 10 * time.Second)
-	defer c1()
-	pdbMigrate(ctx)
-	ctx, c2 := context.WithTimeout(context.Background(), 10 * time.Second)
-	defer c2()
+	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
+	defer cancel()
 	readCallbackLastHeight(ctx)
 }
 

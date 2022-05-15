@@ -24,6 +24,9 @@ import (
 	"log"
 
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
 var pdb *pgxpool.Pool
@@ -35,30 +38,15 @@ func pdbConnect() {
 	}
 }
 
-func pdbMigrate(ctx context.Context) {
-	c := make(chan error)
-	go func() {
-		_, err := pdb.Exec(ctx, `
-		    CREATE TABLE IF NOT EXISTS last_block_height (
-		        height	bigint NOT NULL DEFAULT 0
-		    );
-		    INSERT INTO last_block_height (height) VALUES (0) ON CONFLICT DO NOTHING;
-		    CREATE TABLE IF NOT EXISTS subaddresses (
-		        address_index	bigint PRIMARY KEY,
-		        address		character(95) UNIQUE NOT NULL,
-		        used_until	bigint
-		    );
-		    CREATE TABLE IF NOT EXISTS receivers (
-		        subaddress_index	bigint PRIMARY KEY REFERENCES subaddresses(address_index) ON DELETE CASCADE,
-		        expected_amount		bigint NOT NULL CHECK (expected_amount >= 0),
-		        description		character varying(1024),
-		        callback_url		character varying(2048) NOT NULL,
-		        created_at		timestamp
-		    );`)
-		c <- err
-	}()
-	select {
-		case <-ctx.Done(): log.Fatal(ctx.Err())
-		case err := <-c: log.Fatal(err)
+func pdbMigrate() {
+	m, err := migrate.New("file://db/postgres", Config.postgresCS)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := m.Up(); err != nil {
+		if err == migrate.ErrNoChange {
+			return
+		}
+		log.Fatal(err)
 	}
 }

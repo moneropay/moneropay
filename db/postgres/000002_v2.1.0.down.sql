@@ -15,6 +15,15 @@ BEGIN
 END;
 $$;
 DROP TABLE IF EXISTS last_block_height;
+DO $$
+BEGIN
+    IF EXISTS
+        (SELECT 1 FROM information_schema.tables WHERE table_name = 'subaddresses')
+    THEN
+	ALTER TABLE subaddresses RENAME COLUMN address_index TO index;
+    END IF;
+END;
+$$;
 CREATE TABLE IF NOT EXISTS subaddresses (
 	index bigint PRIMARY KEY,
 	address character(95) UNIQUE NOT NULL,

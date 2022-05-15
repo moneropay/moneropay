@@ -14,8 +14,17 @@ BEGIN
 END;
 $$;
 DROP TABLE IF EXISTS metadata;
+DO $$
+BEGIN
+    IF EXISTS
+        (SELECT 1 FROM information_schema.tables WHERE table_name = 'subaddresses')
+    THEN
+	ALTER TABLE subaddresses RENAME COLUMN index TO address_index;
+    END IF;
+END;
+$$;
 CREATE TABLE IF NOT EXISTS subaddresses (
-	index bigint PRIMARY KEY,
+	address_index bigint PRIMARY KEY,
 	address character(95) UNIQUE NOT NULL,
 	used_until bigint
 );

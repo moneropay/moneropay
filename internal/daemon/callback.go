@@ -154,7 +154,7 @@ func sendCallback(url string, data callbackRequest) error {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "MoneroPay/" + Version)
-	c := &http.Client{Timeout: time.Second * 3}
+	c := &http.Client{Timeout: 30 * time.Second}
 	if _, err := c.Do(req); err != nil {
 		return err
 	}

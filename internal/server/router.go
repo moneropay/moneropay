@@ -45,8 +45,7 @@ func initRouter() *chi.Mux {
 	r.Use(middlewareXMoneroPayAddressHeader)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
-	// TODO: Make this value configurable
-	r.Use(middleware.Timeout(10 * time.Second))
+	r.Use(middleware.Timeout(100 * time.Second))
 	r.Get("/health", controller.HealthHandler)
 	r.Get("/balance", controller.BalanceHandler)
 	r.Post("/receive", controller.ReceivePostHandler)

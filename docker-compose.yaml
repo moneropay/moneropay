@@ -25,7 +25,7 @@ services:
     image: registry.gitlab.com/moneropay/moneropay:v2
     environment:
       - RPC_ADDRESS=http://monero-wallet-rpc:28081/json_rpc
-      - POSTGRESQL=postgresql://${POSTGRES_USERNAME}:${POSTGRES_PASSWORD}@postgresql:5432/${POSTGRES_DATABASE}
+      - POSTGRESQL=postgresql://${POSTGRES_USERNAME}:${POSTGRES_PASSWORD}@postgresql:5432/${POSTGRES_DATABASE}?sslmode=disable
     depends_on:
       - monero-wallet-rpc
       - postgresql

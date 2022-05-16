@@ -1,5 +1,6 @@
 /moneropay
 /data/
 /.env
+/docker-compose.override.yaml
 /start.sh
 *.log

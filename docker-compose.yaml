@@ -1,6 +1,5 @@
 services:
   monero-wallet-rpc:
-    restart: unless-stopped
     image: normoes/monero:v0.17.3.0
     command: monero-wallet-rpc --wallet-file wallet --password-file wallet.passwd --disable-rpc-login
     volumes:
@@ -10,9 +9,9 @@ services:
       - DAEMON_PORT=${MONERO_DAEMON_RPC_PORT}
       - RPC_USER=${MONERO_DAEMON_RPC_USERNAME}
       - RPC_PASSWD=${MONERO_DAEMON_RPC_PASSWORD}
+    restart: unless-stopped
 
   postgresql:
-    restart: unless-stopped
     image: postgres:14-alpine
     volumes:
       - ./data/postgresql:/var/lib/postgresql/data
@@ -20,15 +19,14 @@ services:
       - POSTGRES_USER=${POSTGRES_USERNAME}
       - POSTGRES_PASSWORD
       - POSTGRES_DB=${POSTGRES_DATABASE}
+    restart: unless-stopped
 
   moneropay:
-    restart: unless-stopped
     image: registry.gitlab.com/moneropay/moneropay:v2
     environment:
       - RPC_ADDRESS=http://monero-wallet-rpc:28081/json_rpc
       - POSTGRESQL=postgresql://${POSTGRES_USERNAME}:${POSTGRES_PASSWORD}@postgresql:5432/${POSTGRES_DATABASE}
-    ports:
-      - "127.0.0.1:${MONEROPAYD_PORT:-5000}:5000"
     depends_on:
       - monero-wallet-rpc
       - postgresql
+    restart: unless-stopped

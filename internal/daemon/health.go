@@ -33,18 +33,19 @@ type HealthStatus struct {
 	} `json:"services"`
 }
 
-func Health() (HealthStatus) {
+func Health(ctx context.Context) (HealthStatus) {
 	d := HealthStatus{Status: http.StatusOK}
-	if err := pdbExec(context.Background(), 3 * time.Second,
-	    "SELECT value FROM metadata WHERE key = 'last_height'"); err == nil {
+	ctx, c1 := context.WithTimeout(context.Background(), 10 * time.Second)
+	defer c1()
+	if err := pdb.Ping(ctx); err == nil {
 		d.Services.PostgreSQL = true
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2 * time.Second)
+	ctx, c2 := context.WithTimeout(context.Background(), 10 * time.Second)
+	defer c2()
 	wMutex.Lock()
 	if _, err := wallet.GetHeight(ctx); err == nil {
 		d.Services.WalletRPC = true
 	}
-	defer cancel()
 	wMutex.Unlock()
 	if !d.Services.PostgreSQL || !d.Services.WalletRPC {
 		d.Status = http.StatusServiceUnavailable

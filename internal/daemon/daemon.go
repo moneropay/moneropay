@@ -19,20 +19,21 @@
 
 package daemon
 
-import "log"
+import (
+	"context"
+	"time"
+)
 
-const Version = "2.0.0"
+const Version = "2.1.0"
 
 func init() {
 	loadConfig()
 	walletConnect()
-	if err := pdbConnect(); err != nil {
-		log.Fatal(err)
-	}
-	if err := pdbMigrate(); err != nil {
-		log.Fatal(err)
-	}
-	readCallbackLastHeight()
+	pdbMigrate()
+	pdbConnect()
+	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
+	defer cancel()
+	readCallbackLastHeight(ctx)
 }
 
 func Run() {

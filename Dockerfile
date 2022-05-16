@@ -1,13 +1,11 @@
-FROM golang:alpine as builder
+FROM golang:1.18-alpine3.15 as builder
 WORKDIR /build
-COPY go.mod go.sum ./
-RUN go mod download -x
 COPY . .
-ENV CGO_ENABLED=0
-RUN go build
+RUN CGO_ENABLED=0 go build -ldflags "-s -w"
 
 FROM scratch
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 WORKDIR /app
 COPY --from=builder /build/moneropay .
-CMD ["./moneropay", "-bind=:5000"]
+COPY --from=builder /build/db db
+ENTRYPOINT ["./moneropay", "-bind=:5000"]

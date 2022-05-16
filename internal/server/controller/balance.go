@@ -32,7 +32,7 @@ type balanceResponse struct {
 }
 
 func BalanceHandler(w http.ResponseWriter, r *http.Request) {
-	resp, err := daemon.Balance([]uint64{0})
+	resp, err := daemon.Balance(r.Context(), []uint64{0})
 	if err != nil {
 		writeComplexError(w, err)
 		return

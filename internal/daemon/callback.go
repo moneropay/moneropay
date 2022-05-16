@@ -65,63 +65,85 @@ type callbackRequest struct {
 }
 
 var callbackLastHeight uint64
+var lastHeightUpdated bool
 
-func readCallbackLastHeight() {
-	row, err := pdbQueryRow(context.Background(), 3 * time.Second,
-	    "SELECT value FROM metadata WHERE key = 'last_height'")
-	if err != nil {
-		log.Fatal(err)
-	}
-	if err = row.Scan(&callbackLastHeight); err != nil {
-		log.Fatal(err)
+func readCallbackLastHeight(ctx context.Context) {
+	c := make(chan error)
+	go func() {
+		row := pdb.QueryRow(ctx, "SELECT height FROM last_block_height")
+		c <- row.Scan(&callbackLastHeight)
+	}()
+	select {
+		case <-ctx.Done(): log.Fatal(ctx.Err())
+		case err := <-c:
+			if err != nil {
+				log.Fatal(err)
+			}
 	}
 }
 
-func saveCallbackLastHeight() error {
-	err := pdbExec(context.Background(), 3 * time.Second,
-	    "UPDATE metadata SET value = $1 WHERE key = 'last_height'", callbackLastHeight)
-	if err != nil {
-		return err
+func saveCallbackLastHeight(ctx context.Context) error {
+	c := make(chan error)
+	go func() {
+		_, err := pdb.Exec(ctx, "UPDATE last_block_height SET height = $1", callbackLastHeight)
+		c <- err
+	}()
+	select {
+		case <-ctx.Done(): return ctx.Err()
+		case err := <-c: return err
 	}
-	return nil
 }
 
 func mapAditionalCallbackData(indices []uint64) (map[uint64]additionalCallbackData, error) {
-	rows, err := pdbQuery(context.Background(), 3 * time.Second,
-	    "SELECT subaddress_index, expected_amount, description, callback_url, created_at " +
-	    "FROM receivers WHERE subaddress_index = ANY ($1) AND callback_url != ''", indices)
+	ctx, c1 := context.WithTimeout(context.Background(), 30 * time.Second)
+	defer c1()
+	resp, err := Balance(ctx, indices)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := Balance(indices)
-	if err != nil {
-		return nil, err
-	}
-	// Map subaddress_index table to additionalCallbackData.
-	m := make(map[uint64]additionalCallbackData)
-	var si, ea uint64
-	var d, cu string
-	var ca time.Time
-	for rows.Next() {
-		if err = rows.Scan(&si, &ea, &d, &cu, &ca); err != nil {
-			return nil, err
+	ctx, c2 := context.WithTimeout(context.Background(), 30 * time.Second)
+	defer c2()
+	type ret struct {resp map[uint64]additionalCallbackData; err error}
+	c := make(chan ret)
+	go func() {
+		rows, err := pdb.Query(ctx, "SELECT subaddress_index, expected_amount, description," +
+		    " callback_url, created_at FROM receivers WHERE subaddress_index = ANY ($1) AND" +
+		    " callback_url != ''", indices)
+		if err != nil {
+			c <- ret{nil, err}
+			return
 		}
-		m[si] = additionalCallbackData{
-			ExpectedAmount: ea,
-			Description: d,
-			CallbackUrl: cu,
-			CreatedAt: ca,
+		// Map subaddress_index table to additionalCallbackData.
+		m := make(map[uint64]additionalCallbackData)
+		var si, ea uint64
+		var d, cu string
+		var ca time.Time
+		for rows.Next() {
+			if err = rows.Scan(&si, &ea, &d, &cu, &ca); err != nil {
+				c <- ret{nil, err}
+				return
+			}
+			m[si] = additionalCallbackData{
+				ExpectedAmount: ea,
+				Description: d,
+				CallbackUrl: cu,
+				CreatedAt: ca,
+			}
 		}
-	}
-	// Map subaddress balance to additionalCallbackData.
-	for _, b := range resp.PerSubaddress {
-		if e, ok := m[b.AddressIndex]; ok {
-			e.Balance = b.Balance
-			e.UnlockedBalance = b.UnlockedBalance
-			m[b.AddressIndex] = e
+		// Map subaddress balance to additionalCallbackData.
+		for _, b := range resp.PerSubaddress {
+			if e, ok := m[b.AddressIndex]; ok {
+				e.Balance = b.Balance
+				e.UnlockedBalance = b.UnlockedBalance
+				m[b.AddressIndex] = e
+			}
 		}
+		c <- ret{m, nil}
+	}()
+	select {
+		case <-ctx.Done(): return nil, ctx.Err()
+		case r := <-c: return r.resp, r.err
 	}
-	return m, nil
 }
 
 func sendCallback(url string, data callbackRequest) error {
@@ -132,7 +154,7 @@ func sendCallback(url string, data callbackRequest) error {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "MoneroPay/" + Version)
-	c := &http.Client{Timeout: time.Second * 3}
+	c := &http.Client{Timeout: 30 * time.Second}
 	if _, err := c.Do(req); err != nil {
 		return err
 	}
@@ -142,7 +164,10 @@ func sendCallback(url string, data callbackRequest) error {
 // Fetch new transfers from wallet-rpc, find their 'callback_url' in DB
 // and send a callback.
 func fetchTransfers() {
-	resp, err := GetTransfers(&walletrpc.GetTransfersRequest{
+	// TODO: what should we do with the below duration?
+	ctx, c1 := context.WithTimeout(context.Background(), 30 * time.Second)
+	defer c1()
+	resp, err := GetTransfers(ctx, &walletrpc.GetTransfersRequest{
 		In: true,
 		FilterByHeight: true,
 		MinHeight: callbackLastHeight,
@@ -154,26 +179,22 @@ func fetchTransfers() {
 	if resp.In == nil {
 		return
 	}
-
 	// Create a list of subaddress indices.
 	i := []uint64{}
 	for _, t := range resp.In {
 		i = append(i, t.SubaddrIndex.Minor)
 	}
-
 	m, err := mapAditionalCallbackData(i)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-
+	lastHeightUpdated = false
 	// Check if any of the transfers were made to receivers
 	for _, t := range resp.In {
 		if t.Height > callbackLastHeight {
 			callbackLastHeight = t.Height
-			if saveCallbackLastHeight() != nil {
-				log.Println(err)
-			}
+			lastHeightUpdated = true
 		}
 		if e, ok := m[t.SubaddrIndex.Minor]; ok {
 			// Prepare a callback json payload.
@@ -198,6 +219,14 @@ func fetchTransfers() {
 				log.Println(err)
 			}
 		}
+	}
+	if !lastHeightUpdated {
+		return
+	}
+	ctx, c2 := context.WithTimeout(context.Background(), 30 * time.Second)
+	defer c2()
+	if saveCallbackLastHeight(ctx) != nil {
+		log.Println(err)
 	}
 }
 

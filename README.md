@@ -1,10 +1,10 @@
 # MoneroPay
-Backend service for receiving, sending and tracking Monero payments.
+A backend service for receiving, sending and tracking status of Monero payments.
 
-MoneroPay provides a simple API for merchants or individuals accepting XMR.
-Optionally, it will check for new incoming transfers and callback the provided endpoint.
+MoneroPay provides a simple HTTP API for merchants or individuals who want to accept XMR.
+MoneroPay supports optional status updates via HTTP Callbacks.
 
-[Here](https://donate.kernal.eu) is an example donation page.
+[See here](https://donate.kernal.eu) for an example donation page utilizing MoneroPay.
 
 ## Endpoints
 | Method | URI                            | Input                                                                                 |
@@ -23,7 +23,7 @@ curl -s -X GET "${endpoint}/balance"
 ```
 #### Response
 ##### 200 (Success)
-```jsonc
+```json
 {
   "total": 2513444800,
   "unlocked": 800000000,
@@ -37,7 +37,7 @@ curl -s -X GET "${endpoint}/health"
 ```
 #### Response
 ##### 200 (Success)
-```jsonc
+```json
 {
   "status": 200,
   "services": {
@@ -56,7 +56,7 @@ curl -s -X POST "${endpoint}/receive" \
 ```
 #### Response
 ##### 200 (Success)
-```jsonc
+```json
 {
   "address": "84WsptnLmjTYQjm52SMkhQWsepprkcchNguxdyLkURTSW1WLo3tShTnCRvepijbc2X8GAKPGxJK9hfQhLHzoKSxh7y8Yqrg",
   "amount": 123000000,
@@ -72,7 +72,7 @@ curl -s -X GET "${endpoint}/receive/${address}?min=${min_height}&max=${max_heigh
 ```
 #### Response
 ##### 200 (Success)
-```jsonc
+```json
 {
   "amount": {
     "expected": 1,
@@ -108,7 +108,7 @@ curl -s -X POST "${endpoint}/transfer" \
 ```
 #### Response
 ##### 200 (Success)
-```jsonc
+```json
 {
   "amount": 1337000000,
   "fee": 87438594,
@@ -129,7 +129,7 @@ curl -s -X GET "${endpoint}/transfer/${tx_hash}"
 ```
 #### Response
 ##### 200 (Success)
-```jsonc
+```json
 {
   "amount": 79990000,
   "fee": 9110000,
@@ -150,7 +150,7 @@ curl -s -X GET "${endpoint}/transfer/${tx_hash}"
 ```
 
 ### Callback payload
-```jsonc
+```json
 {
   "amount": {
     "expected": 0,
@@ -177,8 +177,8 @@ curl -s -X GET "${endpoint}/transfer/${tx_hash}"
 
 ## Usage
 ```
-$ ./moneropayd -h
-Usage of ./moneropayd:
+$ ./moneropay -h
+Usage of ./moneropay:
   -bind="localhost:5000": Bind address:port for moneropayd
   -config="": Path to configuration file
   -postgresql="postgresql://moneropay:s3cret@localhost:5432/moneropay": PostgreSQL connection string
@@ -196,10 +196,10 @@ export RPC_ADDRESS='http://localhost:18083/json_rpc'
 export RPC_USERNAME='kernal'
 export RPC_PASSWORD='s3cure'
 export POSTGRESQL='postgresql://moneropay:s3cret@localhost:5432/moneropay'
-./moneropayd
+./moneropay
 ```
 
 ## Contributing
-Submit issues and merge requests only on [GitLab](https://gitlab.com/moneropay/moneropay/).\
-Alternatively, you can send us patch files via email at [moneropay@kernal.eu](mailto:moneropay@kernal.eu).\
-For development related discussions and questions join [#moneropay:kernal.eu](https://matrix.to/#/#moneropay:kernal.eu).
+Issues and merge requests are only checked on [GitLab](https://gitlab.com/moneropay/moneropay/).\
+Alternatively, you can send patch files via email at [moneropay@kernal.eu](mailto:moneropay@kernal.eu).\
+For development related discussions and questions join [#moneropay:kernal.eu](https://matrix.to/#/#moneropay:kernal.eu) Matrix group.

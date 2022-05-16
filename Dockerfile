@@ -1,8 +1,7 @@
-FROM golang:alpine as builder
+FROM golang:1.18-alpine3.15 as builder
 WORKDIR /build
 COPY . .
-ENV CGO_ENABLED=0
-RUN go build
+RUN go build -ldflags "-s -w"
 
 FROM scratch
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/

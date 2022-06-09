@@ -9,7 +9,7 @@ require (
 	github.com/jackc/pgx/v4 v4.16.1
 	github.com/namsral/flag v1.7.4-pre
 	gitlab.com/moneropay/go-monero v1.0.0
-	golang.org/x/net v0.0.0-20220516155154-20f960328961
+	golang.org/x/net v0.0.0-20220607020251-c690dde0001d
 )
 
 require (
@@ -24,8 +24,8 @@ require (
 	github.com/jackc/pgservicefile v0.0.0-20200714003250-2b9c44734f2b // indirect
 	github.com/jackc/pgtype v1.11.0 // indirect
 	github.com/jackc/puddle v1.2.1 // indirect
-	github.com/lib/pq v1.10.5 // indirect
+	github.com/lib/pq v1.10.6 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
-	golang.org/x/crypto v0.0.0-20220516162934-403b01795ae8 // indirect
+	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e // indirect
 	golang.org/x/text v0.3.7 // indirect
 )

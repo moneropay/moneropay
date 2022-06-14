@@ -24,16 +24,4 @@ BEGIN
     END IF;
 END;
 $$;
-CREATE TABLE IF NOT EXISTS subaddresses (
-	index bigint PRIMARY KEY,
-	address character(95) UNIQUE NOT NULL,
-	used_until bigint
-);
-CREATE TABLE IF NOT EXISTS receivers (
-	subaddress_index bigint PRIMARY KEY REFERENCES subaddresses ON DELETE CASCADE,
-	expected_amount bigint NOT NULL CHECK (expected_amount >= 0),
-	description character varying(1024),
-	callback_url character varying(2048) NOT NULL,
-	created_at timestamp with time zone
-);
 COMMIT;

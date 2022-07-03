@@ -85,7 +85,8 @@ func readCallbackLastHeight(ctx context.Context) {
 func saveCallbackLastHeight(ctx context.Context) error {
 	c := make(chan error)
 	go func() {
-		_, err := pdb.Exec(ctx, "UPDATE last_block_height SET height = $1", callbackLastHeight)
+		_, err := pdb.Exec(ctx, "UPDATE last_block_height SET height=$1",
+		    callbackLastHeight)
 		c <- err
 	}()
 	select {
@@ -106,25 +107,27 @@ func mapAditionalCallbackData(indices []uint64) (map[uint64]additionalCallbackDa
 	type ret struct {resp map[uint64]additionalCallbackData; err error}
 	c := make(chan ret)
 	go func() {
-		rows, err := pdb.Query(ctx, "SELECT subaddress_index, expected_amount, description," +
-		    " callback_url, created_at FROM receivers WHERE subaddress_index = ANY ($1) AND" +
-		    " callback_url != ''", indices)
+		rows, err := pdb.Query(ctx,
+		    "SELECT subaddress_index,expected_amount,received_amount,description," +
+		    "callback_url,created_at FROM receivers WHERE subaddress_index=ANY($1)AND" +
+		    " callback_url!=''", indices)
 		if err != nil {
 			c <- ret{nil, err}
 			return
 		}
 		// Map subaddress_index table to additionalCallbackData.
 		m := make(map[uint64]additionalCallbackData)
-		var si, ea uint64
+		var si, ea, ra uint64
 		var d, cu string
 		var ca time.Time
 		for rows.Next() {
-			if err = rows.Scan(&si, &ea, &d, &cu, &ca); err != nil {
+			if err = rows.Scan(&si, &ea, &ra, &d, &cu, &ca); err != nil {
 				c <- ret{nil, err}
 				return
 			}
 			m[si] = additionalCallbackData{
 				ExpectedAmount: ea,
+				UnlockedBalance: ra,
 				Description: d,
 				CallbackUrl: cu,
 				CreatedAt: ca,
@@ -133,8 +136,7 @@ func mapAditionalCallbackData(indices []uint64) (map[uint64]additionalCallbackDa
 		// Map subaddress balance to additionalCallbackData.
 		for _, b := range resp.PerSubaddress {
 			if e, ok := m[b.AddressIndex]; ok {
-				e.Balance = b.Balance
-				e.UnlockedBalance = b.UnlockedBalance
+				e.Balance = b.Balance - b.UnlockedBalance
 				m[b.AddressIndex] = e
 			}
 		}

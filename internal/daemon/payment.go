@@ -38,13 +38,13 @@ func Receive(ctx context.Context, xmr uint64, desc, callbackUrl string) (string,
 	if err != nil {
 		return "", time.Time{}, err
 	}
-	if _, err = tx.Exec(ctx, "INSERT INTO subaddresses (address_index, address) VALUES ($1, $2)",
+	if _, err = tx.Exec(ctx, "INSERT INTO subaddresses(address_index,address)VALUES($1,$2)",
 	    resp.AddressIndex, resp.Address); err != nil {
 		tx.Rollback(ctx)
 		return "", time.Time{}, err
 	}
-	if _, err = tx.Exec(ctx, "INSERT INTO receivers (subaddress_index, expected_amount, " +
-	    "description, callback_url, created_at) VALUES ($1, $2, $3, $4, $5)",
+	if _, err = tx.Exec(ctx, "INSERT INTO receivers(subaddress_index,expected_amount," +
+	    "description,callback_url,created_at,received_amount)VALUES($1,$2,$3,$4,$5,0)",
 	    resp.AddressIndex, xmr, desc, callbackUrl, t); err != nil {
 		tx.Rollback(ctx)
 		return "", time.Time{}, err
@@ -56,7 +56,7 @@ func Receive(ctx context.Context, xmr uint64, desc, callbackUrl string) (string,
 }
 
 type Receiver struct {
-	Index, Expected uint64
+	Index, Expected, Received uint64
 	Description string
 	CreatedAt time.Time
 }
@@ -66,9 +66,12 @@ func GetReceiver(ctx context.Context, address string) (Receiver, error) {
 	c := make(chan ret)
 	go func() {
 		var r ret
-		row := pdb.QueryRow(ctx, "SELECT address_index, expected_amount, description, created_at " +
-		    "FROM subaddresses, receivers WHERE address_index=subaddress_index AND address=$1", address)
-		r.err = row.Scan(&r.resp.Index, &r.resp.Expected, &r.resp.Description, &r.resp.CreatedAt)
+		row := pdb.QueryRow(ctx,
+		    "SELECT address_index, expected_amount, received_amount, description, created_at " +
+		    "FROM subaddresses, receivers WHERE address_index=subaddress_index AND address=$1",
+		    address)
+		r.err = row.Scan(&r.resp.Index, &r.resp.Expected, &r.resp.Received, &r.resp.Description,
+		    &r.resp.CreatedAt)
 		c <- r
 	}()
 	select {
@@ -77,7 +80,7 @@ func GetReceiver(ctx context.Context, address string) (Receiver, error) {
 	}
 }
 
-func GetReceived(ctx context.Context, index, min, max uint64) ([]walletrpc.Transfer, error) {
+func GetReceivedTransfers(ctx context.Context, index, min, max uint64) ([]walletrpc.Transfer, error) {
 	resp, err := GetTransfers(ctx, &walletrpc.GetTransfersRequest{
 		SubaddrIndices: []uint64{index},
 		In: true,

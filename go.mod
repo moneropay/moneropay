@@ -1,6 +1,6 @@
 module gitlab.com/moneropay/moneropay/v2
 
-go 1.17
+go 1.18
 
 require (
 	github.com/gabstv/httpdigest v0.0.0-20200601123255-912d52c2d608
@@ -9,6 +9,7 @@ require (
 	github.com/jackc/pgx/v4 v4.16.1
 	github.com/namsral/flag v1.7.4-pre
 	gitlab.com/moneropay/go-monero v1.0.0
+	golang.org/x/exp v0.0.0-20220613132600-b0d781184e0d
 	golang.org/x/net v0.0.0-20220607020251-c690dde0001d
 )
 

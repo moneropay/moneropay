@@ -9,7 +9,11 @@ import (
 )
 
 func daemonMigrate() {
-	migrateReceivedAmount() 
+	migrateReceivedAmount()
+}
+
+type recvAcct struct {
+	amount, height uint64
 }
 
 func migrateReceivedAmount() {
@@ -20,13 +24,13 @@ func migrateReceivedAmount() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	recv := make(map[uint64]uint64)
+	recv := make(map[uint64]*recvAcct)
 	for rows.Next() {
 		var i uint64
 		if err := rows.Scan(&i); err != nil {
 			log.Fatal(err)
 		}
-		recv[i] = 0
+		recv[i] = &recvAcct{0, 0}
 	}
 	if len(recv) == 0 {
 		return
@@ -38,17 +42,29 @@ func migrateReceivedAmount() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	if len(resp.In) == 0 {
+		return
+	}
 	for _, t := range resp.In {
-		recv[t.SubaddrIndex.Minor] += t.Amount
+		if r, ok := recv[t.SubaddrIndex.Minor]; ok {
+			// 10 block lock is enforced as a blockchain consensus rule
+			if t.Confirmations >= 10 {
+				r.amount += t.Amount
+				if t.Height > r.height {
+					r.height = t.Height
+				}
+			} else {
+			}
+		}
 	}
 	tx, err := pdb.Begin(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
-	for i, r := range recv {
-		if _, err := tx.Exec(ctx, 
-		    "UPDATE receivers SET received_amount=$1 WHERE subaddress_index=$2",
-		    r, i); err != nil {
+	for i, v := range recv {
+		if _, err := tx.Exec(ctx,
+		    "UPDATE receivers SET received_amount=$1,last_height=$2 WHERE subaddress_index=$3",
+		    v.amount, v.height, i); err != nil {
 			    tx.Rollback(ctx)
 			    log.Fatal(err)
 		}

@@ -12,7 +12,7 @@ func daemonMigrate() {
 	migrateReceivedAmount()
 }
 
-type recvAcct struct {
+type oldRecv struct {
 	amount, height uint64
 }
 
@@ -24,13 +24,13 @@ func migrateReceivedAmount() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	recv := make(map[uint64]*recvAcct)
+	recv := make(map[uint64]*oldRecv)
 	for rows.Next() {
 		var i uint64
 		if err := rows.Scan(&i); err != nil {
 			log.Fatal(err)
 		}
-		recv[i] = &recvAcct{0, 0}
+		recv[i] = &oldRecv{0, 0}
 	}
 	if len(recv) == 0 {
 		return

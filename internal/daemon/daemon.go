@@ -39,4 +39,5 @@ func init() {
 
 func Run() {
 	go callbackRunner()
+	go transferAccountingRunner()
 }

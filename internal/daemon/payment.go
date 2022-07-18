@@ -43,9 +43,9 @@ func Receive(ctx context.Context, xmr uint64, desc, callbackUrl string) (string,
 		tx.Rollback(ctx)
 		return "", time.Time{}, err
 	}
-	if _, err = tx.Exec(ctx, "INSERT INTO receivers(subaddress_index,expected_amount," +
-	    "description,callback_url,created_at,received_amount)VALUES($1,$2,$3,$4,$5,0)",
-	    resp.AddressIndex, xmr, desc, callbackUrl, t); err != nil {
+	if _, err = tx.Exec(ctx, "INSERT INTO receivers(subaddress_index,expected_amount,description," +
+	    "callback_url,created_at,received_amount,last_height)VALUES($1,$2,$3,$4,$5,0,$6)",
+	    resp.AddressIndex, xmr, desc, callbackUrl, t, callbackLastHeight); err != nil {
 		tx.Rollback(ctx)
 		return "", time.Time{}, err
 	}

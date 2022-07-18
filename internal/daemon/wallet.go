@@ -85,3 +85,10 @@ func createAddress(ctx context.Context, r *walletrpc.CreateAddressRequest) (*wal
 	wMutex.Unlock()
 	return resp, err
 }
+
+func SweepAll(ctx context.Context, r *walletrpc.SweepAllRequest) (*walletrpc.SweepAllResponse, error) {
+	wMutex.Lock()
+	resp, err := wallet.SweepAll(ctx, r)
+	wMutex.Unlock()
+	return resp, err
+}

@@ -100,12 +100,10 @@ func accountTransfers() {
 		if r.received >= r.expected {
 			if err := sendCompleteCallback(ctx, r, transfer); err != nil {
 				log.Println(err)
-				continue
 			}
 			if _, err := pdb.Exec(ctx, "DELETE FROM receivers WHERE subaddress_index=$1",
 			    r.index); err != nil {
 				log.Println(err)
-				continue
 			}
 		} else {
 			if _, err := pdb.Exec(ctx,

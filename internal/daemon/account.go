@@ -97,7 +97,8 @@ func accountTransfers() {
 		}
 		r.received += received
 		r.height = height
-		if r.received >= r.expected {
+		// Receivers with expected amount 0 never get removed
+		if r.expected != 0 && r.received >= r.expected {
 			if err := sendCompleteCallback(ctx, r, transfer); err != nil {
 				log.Println(err)
 			}

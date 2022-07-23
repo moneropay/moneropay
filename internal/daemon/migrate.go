@@ -53,7 +53,6 @@ func migrateReceivedAmount() {
 				if t.Height > r.height {
 					r.height = t.Height
 				}
-			} else {
 			}
 		}
 	}

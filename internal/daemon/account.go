@@ -15,8 +15,8 @@ type recvAcct struct {
 	height uint64
 }
 
-func countUnlockedTransfers(ctx context.Context, index, height uint64) (uint64, uint64,
-    *walletrpc.Transfer, error) {
+func countUnlockedTransfers(ctx context.Context, index, height, leftToPay uint64) (uint64,
+    uint64, *walletrpc.Transfer, error) {
 	resp, err := GetTransfers(ctx, &walletrpc.GetTransfersRequest{
 		In: true,
 		SubaddrIndices: []uint64{index},
@@ -35,6 +35,9 @@ func countUnlockedTransfers(ctx context.Context, index, height uint64) (uint64, 
 				h = i.Height
 			}
 			t = &i
+			if r >= leftToPay {
+				break
+			}
 		}
 	}
 	return r, h, t, nil
@@ -48,14 +51,14 @@ func sendCompleteCallback(ctx context.Context, r recvAcct, t *walletrpc.Transfer
 	c.Complete = true
 	c.CreatedAt = time.Now()
 	c.Transaction = ReceiveTransaction{
-			Amount: t.Amount,
-			Confirmations: t.Confirmations,
-			DoubleSpendSeen: t.DoubleSpendSeen,
-			Fee: t.Fee,
-			Height: t.Height,
-			Timestamp: time.Unix(int64(t.Timestamp), 0),
-			TxHash: t.Txid,
-			UnlockTime: t.UnlockTime,
+		Amount: t.Amount,
+		Confirmations: t.Confirmations,
+		DoubleSpendSeen: t.DoubleSpendSeen,
+		Fee: t.Fee,
+		Height: t.Height,
+		Timestamp: time.Unix(int64(t.Timestamp), 0),
+		TxHash: t.Txid,
+		UnlockTime: t.UnlockTime,
 	}
 	var u string
 	if err := pdb.QueryRow(ctx,
@@ -83,13 +86,12 @@ func accountTransfers() {
 	}
 	for rows.Next() {
 		var r recvAcct
-		// TODO: what if errnorows?
 		if err := rows.Scan(&r.index, &r.expected, &r.received, &r.height); err != nil {
 			log.Error().Err(err).Msg("Failed to query payment requests")
 			return
 		}
-		// TODO: this should be an array of transfers unlocked after last height!
-		received, height, transfer, err := countUnlockedTransfers(ctx, r.index, r.height)
+		received, height, transfer, err := countUnlockedTransfers(ctx, r.index, r.height,
+		    r.expected - r.received)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to count unlocked transfers")
 			continue

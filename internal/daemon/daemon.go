@@ -28,6 +28,7 @@ const Version = "2.2.0"
 
 func init() {
 	loadConfig()
+	logger()
 	walletConnect()
 	pdbMigrate()
 	pdbConnect()

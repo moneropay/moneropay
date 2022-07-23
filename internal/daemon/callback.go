@@ -23,10 +23,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"log"
 	"net/http"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"gitlab.com/moneropay/go-monero/walletrpc"
 )
 
@@ -74,10 +74,10 @@ func readCallbackLastHeight(ctx context.Context) {
 		c <- row.Scan(&callbackLastHeight)
 	}()
 	select {
-		case <-ctx.Done(): log.Fatal(ctx.Err())
+		case <-ctx.Done(): log.Fatal().Err(ctx.Err()).Msg("Failed to read callback last height")
 		case err := <-c:
 			if err != nil {
-				log.Fatal(err)
+				log.Fatal().Err(err).Msg("Failed to read callback last height")
 			}
 	}
 }
@@ -175,7 +175,7 @@ func fetchTransfers() {
 		MinHeight: callbackLastHeight,
 	})
 	if err != nil {
-		log.Println(err)
+		log.Error().Err(err).Msg("Failed to get transfers")
 		return
 	}
 	if resp.In == nil {
@@ -188,7 +188,7 @@ func fetchTransfers() {
 	}
 	m, err := mapAditionalCallbackData(i)
 	if err != nil {
-		log.Println(err)
+		log.Error().Err(err).Msg("Failed to map callback data")
 		return
 	}
 	lastHeightUpdated = false
@@ -218,8 +218,13 @@ func fetchTransfers() {
 				UnlockTime: t.UnlockTime,
 			}
 			if err = sendCallback(e.CallbackUrl, d); err != nil {
-				log.Println(err)
+				log.Error().Err(err).Str("tx_id", t.Txid).Str("callback_url",
+				    e.CallbackUrl).Msg("Failed callback for new payment")
+				continue
 			}
+			log.Info().Uint64("address_index", t.SubaddrIndex.Minor).Uint64("amount",
+			    t.Amount).Str("tx_id", t.Txid).Str("callback_url", e.CallbackUrl).
+			    Msg("Sent callback for new payment")
 		}
 	}
 	if !lastHeightUpdated {
@@ -228,7 +233,7 @@ func fetchTransfers() {
 	ctx, c2 := context.WithTimeout(context.Background(), 30 * time.Second)
 	defer c2()
 	if saveCallbackLastHeight(ctx) != nil {
-		log.Println(err)
+		log.Error().Err(err).Msg("Failed to save callback last height")
 	}
 }
 

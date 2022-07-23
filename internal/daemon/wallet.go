@@ -21,11 +21,11 @@ package daemon
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"sync"
 
 	"github.com/gabstv/httpdigest"
+	"github.com/rs/zerolog/log"
 	"gitlab.com/moneropay/go-monero/walletrpc"
 )
 
@@ -36,7 +36,7 @@ var WalletPrimaryAddress string
 func readWalletPrimaryAddress() {
 	resp, err := wallet.GetAddress(context.Background(), &walletrpc.GetAddressRequest{AddressIndex: []uint64{0}})
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg("Startup failure")
 	}
 	WalletPrimaryAddress = resp.Address
 }

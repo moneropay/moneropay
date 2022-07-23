@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v4"
+	"github.com/rs/zerolog/log"
 	"gitlab.com/moneropay/go-monero/walletrpc"
 )
 
@@ -52,6 +53,8 @@ func Receive(ctx context.Context, xmr uint64, desc, callbackUrl string) (string,
 	if err = tx.Commit(ctx); err != nil {
 		return "", time.Time{}, err
 	}
+	log.Info().Uint64("amount", xmr).Str("description", desc).Str("callback_url",callbackUrl).
+	    Msg("Created new payment request")
 	return resp.Address, t, err
 }
 

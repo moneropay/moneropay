@@ -21,9 +21,9 @@ package daemon
 
 import (
 	"context"
-	"log"
 
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/rs/zerolog/log"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -34,19 +34,19 @@ var pdb *pgxpool.Pool
 func pdbConnect() {
 	var err error
 	if pdb, err = pgxpool.Connect(context.Background(), Config.postgresCS); err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg("Startup failure")
 	}
 }
 
 func pdbMigrate() {
 	m, err := migrate.New("file://db/postgres", Config.postgresCS)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg("Startup failure")
 	}
 	if err := m.Up(); err != nil {
 		if err == migrate.ErrNoChange {
 			return
 		}
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg("Startup failure")
 	}
 }

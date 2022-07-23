@@ -3,8 +3,8 @@ package daemon
 import (
 	"context"
 	"time"
-	"log"
 
+	"github.com/rs/zerolog/log"
 	"gitlab.com/moneropay/go-monero/walletrpc"
 )
 
@@ -78,18 +78,20 @@ func accountTransfers() {
 	rows, err := pdb.Query(ctx,
 	    "SELECT subaddress_index,expected_amount,received_amount,last_height FROM receivers")
 	if err != nil {
-		log.Println(err)
+		log.Error().Err(err).Msg("Failed to query payment requests")
 		return
 	}
 	for rows.Next() {
 		var r recvAcct
+		// TODO: what if errnorows?
 		if err := rows.Scan(&r.index, &r.expected, &r.received, &r.height); err != nil {
-			log.Println(err)
+			log.Error().Err(err).Msg("Failed to query payment requests")
 			return
 		}
+		// TODO: this should be an array of transfers unlocked after last height!
 		received, height, transfer, err := countUnlockedTransfers(ctx, r.index, r.height)
 		if err != nil {
-			log.Println(err)
+			log.Error().Err(err).Msg("Failed to count unlocked transfers")
 			continue
 		}
 		if received == 0 {
@@ -100,17 +102,20 @@ func accountTransfers() {
 		// Receivers with expected amount 0 never get removed
 		if r.expected != 0 && r.received >= r.expected {
 			if err := sendCompleteCallback(ctx, r, transfer); err != nil {
-				log.Println(err)
+				log.Error().Err(err).Msg("Failed to send callback for unlocked payment")
+			} else {
+				log.Info().Uint64("address_index", r.index).Uint64("amount", transfer.Amount).
+				    Msg("Sent callback for unlocked payment")
 			}
 			if _, err := pdb.Exec(ctx, "DELETE FROM receivers WHERE subaddress_index=$1",
 			    r.index); err != nil {
-				log.Println(err)
+				log.Error().Err(err).Msg("Failed to delete finished payment request")
 			}
 		} else {
 			if _, err := pdb.Exec(ctx,
 			    "UPDATE receivers SET received_amount=$1,last_height=$2 WHERE subaddress_index=$3",
 			    r.received, r.height, r.index); err != nil {
-				log.Println(err)
+				log.Error().Err(err).Msg("Failed to update payment request")
 				continue
 			}
 		}

@@ -33,8 +33,8 @@ func countUnlockedTransfers(ctx context.Context, r *recvAcct) (uint64, error) {
 			received += i.Amount
 			if i.Height > r.height {
 				r.height = i.Height
+				r.transfer = &i
 			}
-			r.transfer = &i
 			if received >= leftToPay {
 				break
 			}

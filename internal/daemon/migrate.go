@@ -12,29 +12,26 @@ func daemonMigrate() {
 	migrateReceivedAmount()
 }
 
-type oldRecv struct {
-	amount, height uint64
-}
-
 func migrateReceivedAmount() {
 	ctx := context.Background()
 	rows, err := pdb.Query(ctx,
-	    "SELECT subaddress_index FROM receivers WHERE received_amount IS NULL")
+	    "SELECT subaddress_index,expected_amount FROM receivers WHERE received_amount IS NULL")
 	defer rows.Close()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Migration failure")
 	}
-	recv := make(map[uint64]*oldRecv)
+	recv := make(map[uint64]*recvAcct)
 	for rows.Next() {
-		var i uint64
-		if err := rows.Scan(&i); err != nil {
+		var i, e uint64
+		if err := rows.Scan(&i, &e); err != nil {
 			log.Fatal().Err(err).Msg("Migration failure")
 		}
-		recv[i] = &oldRecv{0, 0}
+		recv[i] = &recvAcct{index: i, expected: e}
 	}
 	if len(recv) == 0 {
 		return
 	}
+	log.Info().Msg("Migration started")
 	resp, err := GetTransfers(ctx, &walletrpc.GetTransfersRequest{
 		In: true,
 		SubaddrIndices: maps.Keys(recv),
@@ -42,33 +39,24 @@ func migrateReceivedAmount() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Migration failure")
 	}
-	if len(resp.In) == 0 {
-		return
-	}
 	for _, t := range resp.In {
 		if r, ok := recv[t.SubaddrIndex.Minor]; ok {
+			if r.expected != 0 && r.received >= r.expected {
+				continue
+			}
 			// 10 block lock is enforced as a blockchain consensus rule
 			if t.Confirmations >= 10 {
-				r.amount += t.Amount
+				r.received += t.Amount
+				// Don't depend on monero-wallet-rpc's ordering of transfers
 				if t.Height > r.height {
+					r.transfer = &t
 					r.height = t.Height
 				}
 			}
 		}
 	}
-	tx, err := pdb.Begin(ctx)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Migration failure")
+	for _, r := range recv {
+		processUnlockedPayment(ctx, *r)
 	}
-	for i, v := range recv {
-		if _, err := tx.Exec(ctx,
-		    "UPDATE receivers SET received_amount=$1,last_height=$2 WHERE subaddress_index=$3",
-		    v.amount, v.height, i); err != nil {
-			tx.Rollback(ctx)
-			log.Fatal().Err(err).Msg("Migration failure")
-		}
-	}
-	if err = tx.Commit(ctx); err != nil {
-		log.Fatal().Err(err).Msg("Migration failure")
-	}
+	log.Info().Msg("Migration ended")
 }

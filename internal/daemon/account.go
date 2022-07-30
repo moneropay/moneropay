@@ -13,10 +13,16 @@ type recvAcct struct {
 	expected uint64
 	received uint64
 	height uint64
-	transfer *walletrpc.Transfer
 }
 
-func countUnlockedTransfers(ctx context.Context, r *recvAcct) (uint64, error) {
+func updatePaymentOnUnlock(ctx context.Context, r recvAcct) error {
+	_, err := pdb.Exec(ctx,
+	    "UPDATE receivers SET received_amount=$1,last_height=$2 WHERE subaddress_index=$3",
+	    r.received, r.height, r.index)
+	return err
+}
+
+func countUnlockedTransfers(ctx context.Context, r recvAcct) {
 	resp, err := GetTransfers(ctx, &walletrpc.GetTransfersRequest{
 		In: true,
 		SubaddrIndices: []uint64{r.index},
@@ -24,49 +30,35 @@ func countUnlockedTransfers(ctx context.Context, r *recvAcct) (uint64, error) {
 		MinHeight: r.height,
 	})
 	if err != nil {
-		return 0, err
+		log.Error().Err(err).Msg("Failed to get transfers")
+		return
 	}
-	var received uint64
-	leftToPay := r.expected - r.received
+	updated := false
 	for _, i := range resp.In {
 		if i.Confirmations >= 10 {
-			received += i.Amount
+			r.received += i.Amount
 			if i.Height > r.height {
 				r.height = i.Height
-				r.transfer = &i
 			}
-			if received >= leftToPay {
-				break
+			updated = true
+			if err := sendUnlockedCallback(ctx, r, i); err != nil {
+				log.Error().Err(err).Uint64("address_index", r.index).
+				    Uint64("amount", i.Amount).Str("tx_id", i.Txid).
+				    Msg("Failed to send callback for unlocked payment")
+			} else {
+				log.Info().Uint64("address_index", r.index).Uint64("amount", i.Amount).
+				    Str("tx_id", i.Txid).Msg("Sent callback for unlocked payment")
 			}
 		}
 	}
-	r.received += received
-	return received, nil
-}
-
-func processUnlockedPayment(ctx context.Context, r recvAcct) {
-	// Receivers with expected amount 0 never get removed
-	if r.expected != 0 && r.received >= r.expected {
-		if err := sendCompleteCallback(ctx, r); err != nil {
-			log.Error().Err(err).Msg("Failed to send callback for unlocked payment")
-		} else {
-			log.Info().Uint64("address_index", r.index).Uint64("amount", r.transfer.Amount).
-			    Msg("Sent callback for unlocked payment")
-		}
-		if _, err := pdb.Exec(ctx, "DELETE FROM subaddresses WHERE address_index=$1",
-		    r.index); err != nil {
-			log.Error().Err(err).Msg("Failed to delete finished payment request")
-		}
-	} else {
-		if _, err := pdb.Exec(ctx,
-		    "UPDATE receivers SET received_amount=$1,last_height=$2 WHERE subaddress_index=$3",
-		    r.received, r.height, r.index); err != nil {
+	if updated {
+		if err := updatePaymentOnUnlock(ctx, r); err != nil {
 			log.Error().Err(err).Msg("Failed to update payment request")
 		}
 	}
 }
 
-func sendCompleteCallback(ctx context.Context, r recvAcct) error {
+func sendUnlockedCallback(ctx context.Context, r recvAcct, t walletrpc.Transfer) error {
 	var c callbackRequest
 	c.Amount.Expected = r.expected
 	c.Amount.Covered.Total = r.received
@@ -74,14 +66,14 @@ func sendCompleteCallback(ctx context.Context, r recvAcct) error {
 	c.Complete = true
 	c.CreatedAt = time.Now()
 	c.Transaction = ReceiveTransaction{
-		Amount: r.transfer.Amount,
-		Confirmations: r.transfer.Confirmations,
-		DoubleSpendSeen: r.transfer.DoubleSpendSeen,
-		Fee: r.transfer.Fee,
-		Height: r.transfer.Height,
-		Timestamp: time.Unix(int64(r.transfer.Timestamp), 0),
-		TxHash: r.transfer.Txid,
-		UnlockTime: r.transfer.UnlockTime,
+		Amount: t.Amount,
+		Confirmations: t.Confirmations,
+		DoubleSpendSeen: t.DoubleSpendSeen,
+		Fee: t.Fee,
+		Height: t.Height,
+		Timestamp: time.Unix(int64(t.Timestamp), 0),
+		TxHash: t.Txid,
+		UnlockTime: t.UnlockTime,
 	}
 	var u string
 	if err := pdb.QueryRow(ctx,
@@ -106,15 +98,7 @@ func accountTransfers() {
 			log.Error().Err(err).Msg("Failed to query payment requests")
 			return
 		}
-		received, err := countUnlockedTransfers(ctx, &r)
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to count unlocked transfers")
-			continue
-		}
-		if received == 0 {
-			continue
-		}
-		processUnlockedPayment(ctx, r)
+		countUnlockedTransfers(ctx, r)
 	}
 }
 

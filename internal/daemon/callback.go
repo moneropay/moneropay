@@ -218,13 +218,12 @@ func fetchTransfers() {
 				UnlockTime: t.UnlockTime,
 			}
 			if err = sendCallback(e.CallbackUrl, d); err != nil {
-				log.Error().Err(err).Str("tx_id", t.Txid).Str("callback_url",
-				    e.CallbackUrl).Msg("Failed callback for new payment")
+				log.Error().Err(err).Str("tx_id", t.Txid).
+				    Msg("Failed callback for new payment")
 				continue
 			}
 			log.Info().Uint64("address_index", t.SubaddrIndex.Minor).Uint64("amount",
-			    t.Amount).Str("tx_id", t.Txid).Str("callback_url", e.CallbackUrl).
-			    Msg("Sent callback for new payment")
+			    t.Amount).Str("tx_id", t.Txid).Msg("Sent callback for new payment")
 		}
 	}
 	if !lastHeightUpdated {

@@ -41,22 +41,20 @@ func migrateReceivedAmount() {
 	}
 	for _, t := range resp.In {
 		if r, ok := recv[t.SubaddrIndex.Minor]; ok {
-			if r.expected != 0 && r.received >= r.expected {
-				continue
-			}
 			// 10 block lock is enforced as a blockchain consensus rule
 			if t.Confirmations >= 10 {
 				r.received += t.Amount
 				// Don't depend on monero-wallet-rpc's ordering of transfers
 				if t.Height > r.height {
-					r.transfer = &t
 					r.height = t.Height
 				}
 			}
 		}
 	}
 	for _, r := range recv {
-		processUnlockedPayment(ctx, *r)
+		if err := updatePaymentOnUnlock(ctx, *r); err != nil {
+			log.Fatal().Err(err).Msg("Migration failure")
+		}
 	}
 	log.Info().Msg("Migration ended")
 }

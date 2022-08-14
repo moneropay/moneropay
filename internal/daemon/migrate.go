@@ -16,16 +16,16 @@ func migrateReceivedAmount() {
 	ctx := context.Background()
 	rows, err := pdb.Query(ctx,
 	    "SELECT subaddress_index,expected_amount,description,callback_url,created_at" +
-	    "FROM receivers WHERE creation_height IS NULL")
+	    " FROM receivers WHERE creation_height IS NULL")
 	if err != nil {
-		log.Fatal().Err(err).Msg("Migration failure")
+		log.Fatal().Err(err).Msg("Failed to query payment requests to migrate")
 	}
 	rs := make(map[uint64]*recv)
 	for rows.Next() {
 		var t recv
 		if err := rows.Scan(&t.index, &t.expected, &t.description, &t.callbackUrl, &t.createdAt);
 		    err != nil {
-			log.Fatal().Err(err).Msg("Migration failure")
+			log.Fatal().Err(err).Msg("Failed to query payment requests to migrate")
 		}
 		t.creationHeight = lastCallbackHeight
 		rs[t.index] = &t

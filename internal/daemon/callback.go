@@ -28,6 +28,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"gitlab.com/moneropay/go-monero/walletrpc"
+	"golang.org/x/exp/maps"
 )
 
 type recv struct {
@@ -132,9 +133,9 @@ func callback(r *recv, t *walletrpc.Transfer) error {
 	return sendCallbackRequest(d, r.callbackUrl)
 }
 
-func findMinCreationHeight(rs map[uint64]*recv) uint64 {
-	h := rs[0].creationHeight
-	for _, r := range rs {
+func findMinCreationHeight(rv []*recv) uint64 {
+	h := rv[0].creationHeight
+	for _, r := range rv {
 		if r.creationHeight < h {
 			h = r.creationHeight
 		}
@@ -182,7 +183,7 @@ func fetchTransfers() {
 		FilterByHeight: true,
 		// If there are very old rows and they aren't removed, there can be
 		// performance issues.
-		MinHeight: findMinCreationHeight(rs),
+		MinHeight: findMinCreationHeight(maps.Values(rs)),
 	})
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get transfers")

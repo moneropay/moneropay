@@ -1,4 +1,4 @@
 BEGIN;
-ALTER TABLE IF EXISTS receivers ADD COLUMN IF NOT EXISTS received_amount bigint,
-ADD COLUMN IF NOT EXISTS last_height bigint;
+ALTER TABLE IF EXISTS receivers ADD COLUMN IF NOT EXISTS received_amount bigint DEFAULT 0,
+ADD COLUMN IF NOT EXISTS creation_height bigint;
 COMMIT;

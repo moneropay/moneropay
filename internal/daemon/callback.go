@@ -30,13 +30,11 @@ import (
 	"gitlab.com/moneropay/go-monero/walletrpc"
 )
 
-type additionalCallbackData struct {
-	ExpectedAmount uint64
-	Description string
-	CallbackUrl string
-	CreatedAt time.Time
-	Balance uint64
-	UnlockedBalance uint64
+type recv struct {
+	index, expected, received, creationHeight uint64
+	description, callbackUrl string
+	createdAt time.Time
+	updated bool
 }
 
 type ReceiveTransaction struct {
@@ -64,29 +62,28 @@ type callbackRequest struct {
 	Transaction ReceiveTransaction `json:"transaction"`
 }
 
-var callbackLastHeight uint64
-var lastHeightUpdated bool
+var lastCallbackHeight uint64
 
-func readCallbackLastHeight(ctx context.Context) {
+func readLastCallbackHeight(ctx context.Context) {
 	c := make(chan error)
 	go func() {
 		row := pdb.QueryRow(ctx, "SELECT height FROM last_block_height")
-		c <- row.Scan(&callbackLastHeight)
+		c <- row.Scan(&lastCallbackHeight)
 	}()
 	select {
-		case <-ctx.Done(): log.Fatal().Err(ctx.Err()).Msg("Failed to read callback last height")
+		case <-ctx.Done(): log.Fatal().Err(ctx.Err()).Msg("Failed to read last callback height")
 		case err := <-c:
 			if err != nil {
-				log.Fatal().Err(err).Msg("Failed to read callback last height")
+				log.Fatal().Err(err).Msg("Failed to read last callback height")
 			}
 	}
 }
 
-func saveCallbackLastHeight(ctx context.Context) error {
+func saveLastCallbackHeight(ctx context.Context) error {
 	c := make(chan error)
 	go func() {
 		_, err := pdb.Exec(ctx, "UPDATE last_block_height SET height=$1",
-		    callbackLastHeight)
+		    lastCallbackHeight)
 		c <- err
 	}()
 	select {
@@ -95,84 +92,97 @@ func saveCallbackLastHeight(ctx context.Context) error {
 	}
 }
 
-func mapAditionalCallbackData(indices []uint64) (map[uint64]additionalCallbackData, error) {
-	ctx, c1 := context.WithTimeout(context.Background(), 30 * time.Second)
-	defer c1()
-	resp, err := Balance(ctx, indices)
-	if err != nil {
-		return nil, err
-	}
-	ctx, c2 := context.WithTimeout(context.Background(), 30 * time.Second)
-	defer c2()
-	type ret struct {resp map[uint64]additionalCallbackData; err error}
-	c := make(chan ret)
-	go func() {
-		rows, err := pdb.Query(ctx,
-		    "SELECT subaddress_index,expected_amount,received_amount,description," +
-		    "callback_url,created_at FROM receivers WHERE subaddress_index=ANY($1)AND" +
-		    " callback_url!=''", indices)
-		if err != nil {
-			c <- ret{nil, err}
-			return
-		}
-		// Map subaddress_index table to additionalCallbackData.
-		m := make(map[uint64]additionalCallbackData)
-		var si, ea, ra uint64
-		var d, cu string
-		var ca time.Time
-		for rows.Next() {
-			if err = rows.Scan(&si, &ea, &ra, &d, &cu, &ca); err != nil {
-				c <- ret{nil, err}
-				return
-			}
-			m[si] = additionalCallbackData{
-				ExpectedAmount: ea,
-				UnlockedBalance: ra,
-				Description: d,
-				CallbackUrl: cu,
-				CreatedAt: ca,
-			}
-		}
-		// Map subaddress balance to additionalCallbackData.
-		for _, b := range resp.PerSubaddress {
-			if e, ok := m[b.AddressIndex]; ok {
-				e.Balance = b.Balance - b.UnlockedBalance
-				m[b.AddressIndex] = e
-			}
-		}
-		c <- ret{m, nil}
-	}()
-	select {
-		case <-ctx.Done(): return nil, ctx.Err()
-		case r := <-c: return r.resp, r.err
-	}
-}
-
-func sendCallback(url string, data callbackRequest) error {
-	j, _ := json.Marshal(data)
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(j))
+func sendCallbackRequest(d callbackRequest, u string) error {
+	j, _ := json.Marshal(d)
+	req, err := http.NewRequest(http.MethodPost, u, bytes.NewBuffer(j))
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "MoneroPay/" + Version)
 	c := &http.Client{Timeout: 30 * time.Second}
-	if _, err := c.Do(req); err != nil {
-		return err
-	}
-	return nil
+	_, err = c.Do(req)
+	return err
 }
 
-// Fetch new transfers from wallet-rpc, find their 'callback_url' in DB
-// and send a callback.
+func callback(r *recv, t *walletrpc.Transfer) error {
+	resp, err := Balance(context.Background(), []uint64{r.index})
+	if err != nil {
+		return err
+	}
+	// Prepare a callback json payload.
+	var d callbackRequest
+	d.Amount.Expected = r.expected
+	d.Amount.Covered.Total = r.received + (resp.PerSubaddress[0].Balance -
+	    resp.PerSubaddress[0].UnlockedBalance)
+	d.Amount.Covered.Unlocked = r.received
+	d.Complete = d.Amount.Covered.Unlocked >= d.Amount.Expected
+	d.Description = r.description
+	d.CreatedAt = r.createdAt
+	d.Transaction = ReceiveTransaction{
+		Amount: t.Amount,
+		Confirmations: t.Confirmations,
+		DoubleSpendSeen: t.DoubleSpendSeen,
+		Fee: t.Fee,
+		Height: t.Height,
+		Timestamp: time.Unix(int64(t.Timestamp), 0),
+		TxHash: t.Txid,
+		UnlockTime: t.UnlockTime,
+	}
+	return sendCallbackRequest(d, r.callbackUrl)
+}
+
+func findMinCreationHeight(rs map[uint64]*recv) uint64 {
+	h := rs[0].creationHeight
+	for _, r := range rs {
+		if r.creationHeight < h {
+			h = r.creationHeight
+		}
+	}
+	return h
+}
+
+func updateReceivers(ctx context.Context, rs map[uint64]*recv) {
+	for _, r := range rs {
+		if !r.updated {
+			continue
+		}
+		if _, err := pdb.Exec(ctx,
+		    "UPDATE receivers SET received_amount=$1 WHERE subaddress_index=$2",
+		    r.received, r.index); err != nil {
+			log.Error().Err(err).Uint64("address_index", r.index).
+			    Msg("Failed to update payment request")
+		}
+	}
+}
+
 func fetchTransfers() {
-	// TODO: what should we do with the below duration?
-	ctx, c1 := context.WithTimeout(context.Background(), 30 * time.Second)
-	defer c1()
+	ctx := context.Background()
+	rows, err := pdb.Query(ctx, "SELECT subaddress_index,expected_amount,received_amount,description," +
+		    "callback_url,created_at,creation_height FROM receivers")
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get payment requests from database")
+		return
+	}
+	// TODO: Implement caching in a future release here
+	rs := make(map[uint64]*recv)
+	for rows.Next() {
+		var t recv
+		if err := rows.Scan(&t.index, &t.expected, &t.received, &t.description, &t.callbackUrl,
+		    &t.createdAt, &t.creationHeight); err != nil {
+			log.Error().Err(err).Msg("Failed to get payment requests from database")
+		}
+		rs[t.index] = &t
+	}
+	if len(rs) == 0 {
+		return
+	}
 	resp, err := GetTransfers(ctx, &walletrpc.GetTransfersRequest{
 		In: true,
 		FilterByHeight: true,
-		MinHeight: callbackLastHeight,
+		// If there are very old rows and they aren't removed, there can be
+		// performance issues.
+		MinHeight: findMinCreationHeight(rs),
 	})
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get transfers")
@@ -181,59 +191,53 @@ func fetchTransfers() {
 	if resp.In == nil {
 		return
 	}
-	// Create a list of subaddress indices.
-	i := []uint64{}
+	h := lastCallbackHeight
 	for _, t := range resp.In {
-		i = append(i, t.SubaddrIndex.Minor)
-	}
-	m, err := mapAditionalCallbackData(i)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to map callback data")
-		return
-	}
-	lastHeightUpdated = false
-	// Check if any of the transfers were made to receivers
-	for _, t := range resp.In {
-		if t.Height > callbackLastHeight {
-			callbackLastHeight = t.Height
-			lastHeightUpdated = true
-		}
-		if e, ok := m[t.SubaddrIndex.Minor]; ok {
-			// Prepare a callback json payload.
-			var d callbackRequest
-			d.Amount.Expected = e.ExpectedAmount
-			d.Amount.Covered.Total = e.Balance
-			d.Amount.Covered.Unlocked = e.UnlockedBalance
-			d.Complete = d.Amount.Covered.Unlocked >= d.Amount.Expected
-			d.Description = e.Description
-			d.CreatedAt = e.CreatedAt
-			d.Transaction = ReceiveTransaction{
-				Amount: t.Amount,
-				Confirmations: t.Confirmations,
-				DoubleSpendSeen: t.DoubleSpendSeen,
-				Fee: t.Fee,
-				Height: t.Height,
-				Timestamp: time.Unix(int64(t.Timestamp), 0),
-				TxHash: t.Txid,
-				UnlockTime: t.UnlockTime,
+		unlocked := false
+		u := t.Height
+		// 10 block lock is enforced as a blockchain consensus rule
+		if t.Confirmations >= 10 {
+			// If the transfer is unlocked compare the block which it unlocked at
+			// (t.Height + t.UnlockTime) to the block that caused the last callback.
+			if t.UnlockTime == 0 || t.UnlockTime - t.Height < 10 {
+				u += 10
+				unlocked = true
+			} else if t.UnlockTime - t.Height <= t.Confirmations {
+				u = t.UnlockTime
+				unlocked = true
 			}
-			if err = sendCallback(e.CallbackUrl, d); err != nil {
+		}
+		if u <= lastCallbackHeight {
+			continue
+		}
+		if r, ok := rs[t.SubaddrIndex.Minor]; ok {
+			if unlocked {
+				r.received += t.Amount
+				r.updated = true
+			}
+			if err = callback(r, &t); err != nil {
 				log.Error().Err(err).Str("tx_id", t.Txid).
 				    Msg("Failed callback for new payment")
 				continue
 			}
-			log.Info().Uint64("address_index", t.SubaddrIndex.Minor).Uint64("amount",
-			    t.Amount).Str("tx_id", t.Txid).Msg("Sent callback for new payment")
+			log.Info().Uint64("address_index", t.SubaddrIndex.Minor).Uint64("amount", t.Amount).
+			    Str("tx_id", t.Txid).Uint64("callback_height", u).Bool("unlocked", unlocked).Msg("Sent callback")
+			// Don't depend on wallet-rpc's ordering of transfers
+			if u > h {
+				h = u
+			}
 		}
 	}
-	if !lastHeightUpdated {
+	if h == lastCallbackHeight {
 		return
 	}
-	ctx, c2 := context.WithTimeout(context.Background(), 30 * time.Second)
-	defer c2()
-	if saveCallbackLastHeight(ctx) != nil {
-		log.Error().Err(err).Msg("Failed to save callback last height")
+	lastCallbackHeight = h
+	if err := saveLastCallbackHeight(ctx); err != nil {
+		log.Error().Err(err).Uint64("height", lastCallbackHeight).Msg("Failed to save last callback height")
+	} else {
+		log.Info().Uint64("height", lastCallbackHeight).Msg("Saved last callback height")
 	}
+	updateReceivers(ctx, rs)
 }
 
 func callbackRunner() {

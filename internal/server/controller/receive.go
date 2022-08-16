@@ -43,20 +43,6 @@ type receivePostResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-type receiveGetResponse struct {
-	Amount struct {
-		Expected uint64 `json:"expected"`
-		Covered struct {
-			Total uint64 `json:"total"`
-			Unlocked uint64 `json:"unlocked"`
-		} `json:"covered"`
-	} `json:"amount"`
-	Complete bool `json:"complete"`
-	Description string `json:"description,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
-	Transactions []daemon.ReceiveTransaction `json:"transactions"`
-}
-
 func ReceivePostHandler(w http.ResponseWriter, r *http.Request) {
 	var j receivePostRequest
 	if err := json.NewDecoder(r.Body).Decode(&j); err != nil {
@@ -101,48 +87,10 @@ func ReceiveGetHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	ctx := r.Context()
-	// Get data for address from DB.
-	recv, err := daemon.GetReceiver(ctx, a)
+	d, err := daemon.GetPaymentRequest(r.Context(), a, min, max)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, nil, err.Error())
+		writeComplexError(w, err)
 		return
 	}
-	var d receiveGetResponse
-	// TODO: This call to wallet RPC can be avoided by caching the
-	// get_transfers response in the callback runner
-	tx, err := daemon.GetReceivedTransfers(ctx, recv.Index, min, max)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, nil, err.Error())
-		return
-	}
-	var total, unlocked uint64
-	for _, r1 := range tx {
-		if r1.Confirmations >= 10 {
-			if r1.UnlockTime == 0 || r1.UnlockTime - r1.Height < 10 {
-				unlocked += r1.Amount
-			} else if r1.UnlockTime - r1.Height <= r1.Confirmations {
-				unlocked += r1.Amount
-			}
-		}
-		total += r1.Amount
-		r2 := daemon.ReceiveTransaction{
-			Amount: r1.Amount,
-			Confirmations: r1.Confirmations,
-			DoubleSpendSeen: r1.DoubleSpendSeen,
-			Fee: r1.Fee,
-			Height: r1.Height,
-			Timestamp: time.Unix(int64(r1.Timestamp), 0),
-			TxHash: r1.Txid,
-			UnlockTime: r1.UnlockTime,
-		}
-		d.Transactions = append(d.Transactions, r2)
-	}
-	d.Amount.Expected = recv.Expected
-	d.Description = recv.Description
-	d.CreatedAt = recv.CreatedAt
-	d.Amount.Covered.Total = total
-	d.Amount.Covered.Unlocked = unlocked
-	d.Complete = d.Amount.Covered.Unlocked >= d.Amount.Expected
 	json.NewEncoder(w).Encode(d)
 }

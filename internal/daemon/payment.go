@@ -60,22 +60,21 @@ func Receive(ctx context.Context, xmr uint64, desc, callbackUrl string) (string,
 }
 
 type Receiver struct {
-	Index, Expected, Received uint64
+	Index, Expected uint64
 	Description string
 	CreatedAt time.Time
 }
 
-func GetReceiver(ctx context.Context, address string) (Receiver, error) {
+func getReceiver(ctx context.Context, address string) (Receiver, error) {
 	type ret struct {resp Receiver; err error}
 	c := make(chan ret)
 	go func() {
 		var r ret
 		row := pdb.QueryRow(ctx,
-		    "SELECT address_index, expected_amount, received_amount, description, created_at " +
-		    "FROM subaddresses, receivers WHERE address_index=subaddress_index AND address=$1",
+		    "SELECT address_index,expected_amount,description,created_at " +
+		    "FROM subaddresses,receivers WHERE address_index=subaddress_index AND address=$1",
 		    address)
-		r.err = row.Scan(&r.resp.Index, &r.resp.Expected, &r.resp.Received, &r.resp.Description,
-		    &r.resp.CreatedAt)
+		r.err = row.Scan(&r.resp.Index, &r.resp.Expected, &r.resp.Description, &r.resp.CreatedAt)
 		c <- r
 	}()
 	select {
@@ -84,7 +83,7 @@ func GetReceiver(ctx context.Context, address string) (Receiver, error) {
 	}
 }
 
-func GetReceivedTransfers(ctx context.Context, index, min, max uint64) ([]walletrpc.Transfer, error) {
+func getReceivedTransfers(ctx context.Context, index, min, max uint64) ([]walletrpc.Transfer, error) {
 	resp, err := GetTransfers(ctx, &walletrpc.GetTransfersRequest{
 		SubaddrIndices: []uint64{index},
 		In: true,
@@ -96,4 +95,62 @@ func GetReceivedTransfers(ctx context.Context, index, min, max uint64) ([]wallet
 		return nil, err
 	}
 	return resp.In, nil
+}
+
+type recvData struct {
+	Amount struct {
+		Expected uint64 `json:"expected"`
+		Covered struct {
+			Total uint64 `json:"total"`
+			Unlocked uint64 `json:"unlocked"`
+		} `json:"covered"`
+	} `json:"amount"`
+	Complete bool `json:"complete"`
+	Description string `json:"description,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+	Transactions []ReceiveTransaction `json:"transactions"`
+}
+
+func GetPaymentRequest(ctx context.Context, address string, min, max uint64) (recvData, error) {
+	var d recvData
+	// Get data for address from DB.
+	recv, err := getReceiver(ctx, address)
+	if err != nil {
+		return d, err
+	}
+	// TODO: This call to wallet RPC can be avoided by caching the
+	// get_transfers response in the callback runner
+	tx, err := getReceivedTransfers(ctx, recv.Index, min, max)
+	if err != nil {
+		return d, err
+	}
+	var total, unlocked uint64
+	for _, r1 := range tx {
+		if r1.Confirmations >= 10 {
+			if r1.UnlockTime == 0 || r1.UnlockTime - r1.Height < 10 {
+				unlocked += r1.Amount
+			} else if r1.UnlockTime - r1.Height <= r1.Confirmations {
+				unlocked += r1.Amount
+			}
+		}
+		total += r1.Amount
+		r2 := ReceiveTransaction{
+			Amount: r1.Amount,
+			Confirmations: r1.Confirmations,
+			DoubleSpendSeen: r1.DoubleSpendSeen,
+			Fee: r1.Fee,
+			Height: r1.Height,
+			Timestamp: time.Unix(int64(r1.Timestamp), 0),
+			TxHash: r1.Txid,
+			UnlockTime: r1.UnlockTime,
+		}
+		d.Transactions = append(d.Transactions, r2)
+	}
+	d.Amount.Expected = recv.Expected
+	d.Description = recv.Description
+	d.CreatedAt = recv.CreatedAt
+	d.Amount.Covered.Total = total
+	d.Amount.Covered.Unlocked = unlocked
+	d.Complete = d.Amount.Covered.Unlocked >= d.Amount.Expected
+	return d, nil
 }

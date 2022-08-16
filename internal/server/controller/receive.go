@@ -109,25 +109,23 @@ func ReceiveGetHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var d receiveGetResponse
-	// Get balance for address from WalletRPC.
-	resp, err := daemon.Balance(ctx, []uint64{recv.Index})
-	if err != nil {
-		writeComplexError(w, err)
-		return
-	}
-	d.Amount.Expected = recv.Expected
-	d.Description = recv.Description
-	d.CreatedAt = recv.CreatedAt
-	d.Amount.Covered.Total = recv.Received + (resp.PerSubaddress[0].Balance -
-	    resp.PerSubaddress[0].UnlockedBalance)
-	d.Amount.Covered.Unlocked = recv.Received
-	d.Complete = d.Amount.Covered.Unlocked >= d.Amount.Expected
+	// TODO: This call to wallet RPC can be avoided by caching the
+	// get_transfers response in the callback runner
 	tx, err := daemon.GetReceivedTransfers(ctx, recv.Index, min, max)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, nil, err.Error())
 		return
 	}
+	var total, unlocked uint64
 	for _, r1 := range tx {
+		if r1.Confirmations >= 10 {
+			if r1.UnlockTime == 0 || r1.UnlockTime - r1.Height < 10 {
+				unlocked += r1.Amount
+			} else if r1.UnlockTime - r1.Height <= r1.Confirmations {
+				unlocked += r1.Amount
+			}
+		}
+		total += r1.Amount
 		r2 := daemon.ReceiveTransaction{
 			Amount: r1.Amount,
 			Confirmations: r1.Confirmations,
@@ -140,5 +138,11 @@ func ReceiveGetHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		d.Transactions = append(d.Transactions, r2)
 	}
+	d.Amount.Expected = recv.Expected
+	d.Description = recv.Description
+	d.CreatedAt = recv.CreatedAt
+	d.Amount.Covered.Total = total
+	d.Amount.Covered.Unlocked = unlocked
+	d.Complete = d.Amount.Covered.Unlocked >= d.Amount.Expected
 	json.NewEncoder(w).Encode(d)
 }

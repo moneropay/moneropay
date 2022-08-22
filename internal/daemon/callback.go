@@ -192,23 +192,23 @@ func fetchTransfers() {
 	if resp.In == nil {
 		return
 	}
-	h := lastCallbackHeight
+	maxHeight := lastCallbackHeight
 	for _, t := range resp.In {
 		unlocked := false
-		u := t.Height
+		eventHeight := t.Height
 		// 10 block lock is enforced as a blockchain consensus rule
 		if t.Confirmations >= 10 {
 			// If the transfer is unlocked compare the block which it unlocked at
 			// (t.Height + t.UnlockTime) to the block that caused the last callback.
-			if t.UnlockTime == 0 || t.UnlockTime - t.Height < 10 {
-				u += 10
+			if t.UnlockTime == 0 || t.UnlockTime - t.Height <= 10 {
+				eventHeight += 10
 				unlocked = true
 			} else if t.UnlockTime - t.Height <= t.Confirmations {
-				u = t.UnlockTime
+				eventHeight = t.UnlockTime
 				unlocked = true
 			}
 		}
-		if u <= lastCallbackHeight {
+		if eventHeight <= lastCallbackHeight {
 			continue
 		}
 		if r, ok := rs[t.SubaddrIndex.Minor]; ok {
@@ -218,21 +218,21 @@ func fetchTransfers() {
 			}
 			if err = callback(ctx, r, &t); err != nil {
 				log.Error().Err(err).Str("tx_id", t.Txid).
-				    Msg("Failed callback for new payment")
+				    Msg("Failed callback")
 				continue
 			}
 			log.Info().Uint64("address_index", t.SubaddrIndex.Minor).Uint64("amount", t.Amount).
-			    Str("tx_id", t.Txid).Uint64("callback_height", u).Bool("unlocked", unlocked).Msg("Sent callback")
+			    Str("tx_id", t.Txid).Uint64("callback_height", eventHeight).Bool("unlocked", unlocked).Msg("Sent callback")
 			// Don't depend on wallet-rpc's ordering of transfers
-			if u > h {
-				h = u
+			if eventHeight > maxHeight {
+				maxHeight = eventHeight
 			}
 		}
 	}
-	if h == lastCallbackHeight {
+	if maxHeight == lastCallbackHeight {
 		return
 	}
-	lastCallbackHeight = h
+	lastCallbackHeight = maxHeight
 	if err := saveLastCallbackHeight(ctx); err != nil {
 		log.Error().Err(err).Uint64("height", lastCallbackHeight).Msg("Failed to save last callback height")
 	} else {

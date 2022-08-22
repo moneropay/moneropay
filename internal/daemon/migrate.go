@@ -40,19 +40,19 @@ func migrateReceivedAmount() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Migration failure")
 	}
-	h := lastCallbackHeight
+	maxHeight := lastCallbackHeight
 	for _, t := range resp.In {
-		u := t.Height
+		eventHeight := t.Height
 		unlocked := false
 		if r, ok := rs[t.SubaddrIndex.Minor]; ok {
 			if t.Confirmations >= 10 {
 				// If the transfer is unlocked compare the block which it unlocked at
 				// (t.Height + t.UnlockTime) to the block that caused the last callback
 				if t.UnlockTime == 0 || t.UnlockTime - t.Height < 10 {
-					u += 10
+					eventHeight += 10
 					unlocked = true
 				} else if t.UnlockTime - t.Height <= t.Confirmations {
-					u = t.UnlockTime
+					eventHeight = t.UnlockTime
 					unlocked = true
 				}
 			}
@@ -65,18 +65,18 @@ func migrateReceivedAmount() {
 			} else {
 				r.received += t.Amount
 			}
-			if u > lastCallbackHeight {
+			if eventHeight > lastCallbackHeight {
 				if err := callback(ctx, r, &t); err != nil {
 					log.Error().Err(err).Str("tx_id", t.Txid).
-					    Msg("Failed callback for new payment")
+					    Msg("Failed callback")
 					continue
 				}
 				log.Info().Uint64("address_index", t.SubaddrIndex.Minor).
 				    Uint64("amount", t.Amount).Str("tx_id", t.Txid).
-				    Uint64("callback_height", u).Bool("unlocked", unlocked).
+				    Uint64("callback_height", eventHeight).Bool("unlocked", unlocked).
 				    Msg("Sent callback")
-				if u > h {
-					h = u
+				if eventHeight > maxHeight {
+					maxHeight = eventHeight
 				}
 			}
 		}
@@ -88,7 +88,7 @@ func migrateReceivedAmount() {
 			log.Fatal().Err(err).Msg("Migration failure")
 		}
 	}
-	if h > lastCallbackHeight {
+	if maxHeight > lastCallbackHeight {
 		if err := saveLastCallbackHeight(ctx); err != nil {
 			log.Fatal().Err(err).Uint64("height", lastCallbackHeight).
 			    Msg("Failed to save last callback height")

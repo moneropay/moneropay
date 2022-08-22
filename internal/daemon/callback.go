@@ -66,31 +66,18 @@ type callbackRequest struct {
 var lastCallbackHeight uint64
 
 func readLastCallbackHeight(ctx context.Context) {
-	c := make(chan error)
-	go func() {
-		row := pdb.QueryRow(ctx, "SELECT height FROM last_block_height")
-		c <- row.Scan(&lastCallbackHeight)
-	}()
-	select {
-		case <-ctx.Done(): log.Fatal().Err(ctx.Err()).Msg("Failed to read last callback height")
-		case err := <-c:
-			if err != nil {
-				log.Fatal().Err(err).Msg("Failed to read last callback height")
-			}
+	row, err := pdbQueryRow(ctx, "SELECT height FROM last_block_height")
+	if err != nil {
+		log.Fatal().Err(ctx.Err()).Msg("Failed to read last callback height")
+	}
+	if err := row.Scan(&lastCallbackHeight); err != nil {
+		log.Fatal().Err(err).Msg("Failed to read last callback height")
 	}
 }
 
 func saveLastCallbackHeight(ctx context.Context) error {
-	c := make(chan error)
-	go func() {
-		_, err := pdb.Exec(ctx, "UPDATE last_block_height SET height=$1",
+	return pdbExec(ctx, "UPDATE last_block_height SET height=$1",
 		    lastCallbackHeight)
-		c <- err
-	}()
-	select {
-		case <-ctx.Done(): return ctx.Err()
-		case err := <-c: return err
-	}
 }
 
 func sendCallbackRequest(d callbackRequest, u string) error {
@@ -148,7 +135,7 @@ func updateReceivers(ctx context.Context, rs map[uint64]*recv) {
 		if !r.updated {
 			continue
 		}
-		if _, err := pdb.Exec(ctx,
+		if err := pdbExec(ctx,
 		    "UPDATE receivers SET received_amount=$1 WHERE subaddress_index=$2",
 		    r.received, r.index); err != nil {
 			log.Error().Err(err).Uint64("address_index", r.index).
@@ -159,7 +146,7 @@ func updateReceivers(ctx context.Context, rs map[uint64]*recv) {
 
 func fetchTransfers() {
 	ctx := context.Background()
-	rows, err := pdb.Query(ctx, "SELECT subaddress_index,expected_amount,received_amount,description," +
+	rows, err := pdbQuery(ctx, "SELECT subaddress_index,expected_amount,received_amount,description," +
 		    "callback_url,created_at,creation_height FROM receivers")
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get payment requests from database")

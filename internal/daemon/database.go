@@ -21,7 +21,9 @@ package daemon
 
 import (
 	"context"
+	"time"
 
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/rs/zerolog/log"
 	"github.com/golang-migrate/migrate/v4"
@@ -48,5 +50,55 @@ func pdbMigrate() {
 			return
 		}
 		log.Fatal().Err(err).Msg("Startup failure")
+	}
+}
+
+func pdbQueryRow(ctx context.Context, query string, args ...interface{}) (pgx.Row, error) {
+	ctx, cancel := context.WithTimeout(ctx, 60 * time.Second)
+	defer cancel()
+	c := make(chan pgx.Row, 1)
+	go func() { c <- pdb.QueryRow(ctx, query, args...) }()
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case row := <-c:
+		return row, nil
+	}
+}
+
+type queryRet struct {
+	rows pgx.Rows
+	err error
+}
+
+func pdbQuery(ctx context.Context, query string, args ...interface{}) (pgx.Rows, error) {
+	ctx, cancel := context.WithTimeout(ctx, 60 * time.Second)
+	defer cancel()
+	c := make(chan queryRet, 1)
+	go func() {
+		rows, err := pdb.Query(ctx, query, args...)
+		c <- queryRet{rows, err}
+	}()
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case ret := <-c:
+		return ret.rows, ret.err
+	}
+}
+
+func pdbExec(ctx context.Context, query string, args ...interface{}) error {
+	ctx, cancel := context.WithTimeout(ctx, 60 * time.Second)
+	defer cancel()
+	c := make(chan error, 1)
+	go func() {
+		_, err := pdb.Exec(ctx, query, args...)
+		c <- err
+	}()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case err := <-c:
+		return err
 	}
 }

@@ -69,21 +69,16 @@ type Receiver struct {
 }
 
 func getReceiver(ctx context.Context, address string) (Receiver, error) {
-	type ret struct {resp Receiver; err error}
-	c := make(chan ret)
-	go func() {
-		var r ret
-		row := pdb.QueryRow(ctx,
-		    "SELECT address_index,expected_amount,description,created_at " +
-		    "FROM subaddresses,receivers WHERE address_index=subaddress_index AND address=$1",
-		    address)
-		r.err = row.Scan(&r.resp.Index, &r.resp.Expected, &r.resp.Description, &r.resp.CreatedAt)
-		c <- r
-	}()
-	select {
-		case <-ctx.Done(): return Receiver{}, ctx.Err()
-		case r := <-c: return r.resp, r.err
+	var r Receiver
+	row, err := pdbQueryRow(ctx,
+	    "SELECT address_index,expected_amount,description,created_at " +
+	    "FROM subaddresses,receivers WHERE address_index=subaddress_index AND address=$1",
+	    address)
+	if err != nil {
+		return r, err
 	}
+	err = row.Scan(&r.Index, &r.Expected, &r.Description, &r.CreatedAt)
+	return r, err
 }
 
 func getReceivedTransfers(ctx context.Context, index, min, max uint64) ([]walletrpc.Transfer, error) {

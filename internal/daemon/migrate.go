@@ -14,7 +14,7 @@ func daemonMigrate() {
 
 func migrateReceivedAmount() {
 	ctx := context.Background()
-	rows, err := pdb.Query(ctx,
+	rows, err := pdbQuery(ctx,
 	    "SELECT subaddress_index,expected_amount,description,callback_url,created_at" +
 	    " FROM receivers WHERE creation_height IS NULL")
 	if err != nil {
@@ -82,7 +82,7 @@ func migrateReceivedAmount() {
 		}
 	}
 	for _, r := range rs {
-		if _, err := pdb.Exec(ctx,
+		if err := pdbExec(ctx,
 		    "UPDATE receivers SET received_amount=$1,creation_height=$2 WHERE subaddress_index=$3",
 		    r.received, r.creationHeight); err != nil {
 			log.Fatal().Err(err).Msg("Migration failure")

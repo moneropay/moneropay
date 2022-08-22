@@ -66,7 +66,7 @@ func migrateReceivedAmount() {
 				r.received += t.Amount
 			}
 			if u > lastCallbackHeight {
-				if err := callback(r, &t); err != nil {
+				if err := callback(ctx, r, &t); err != nil {
 					log.Error().Err(err).Str("tx_id", t.Txid).
 					    Msg("Failed callback for new payment")
 					continue

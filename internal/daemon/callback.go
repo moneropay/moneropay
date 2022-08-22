@@ -106,8 +106,8 @@ func sendCallbackRequest(d callbackRequest, u string) error {
 	return err
 }
 
-func callback(r *recv, t *walletrpc.Transfer) error {
-	resp, err := Balance(context.Background(), []uint64{r.index})
+func callback(ctx context.Context, r *recv, t *walletrpc.Transfer) error {
+	resp, err := Balance(ctx, []uint64{r.index})
 	if err != nil {
 		return err
 	}
@@ -216,7 +216,7 @@ func fetchTransfers() {
 				r.received += t.Amount
 				r.updated = true
 			}
-			if err = callback(r, &t); err != nil {
+			if err = callback(ctx, r, &t); err != nil {
 				log.Error().Err(err).Str("tx_id", t.Txid).
 				    Msg("Failed callback for new payment")
 				continue

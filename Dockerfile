@@ -1,4 +1,4 @@
-FROM golang:1.18-alpine3.16 as builder
+FROM golang:1.19-alpine3.16 as builder
 WORKDIR /build
 COPY . .
 RUN CGO_ENABLED=0 go build -ldflags "-s -w"

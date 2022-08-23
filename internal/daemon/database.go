@@ -66,14 +66,10 @@ func pdbQueryRow(ctx context.Context, query string, args ...interface{}) (pgx.Ro
 	}
 }
 
-type queryRet struct {
-	rows pgx.Rows
-	err error
-}
-
 func pdbQuery(ctx context.Context, query string, args ...interface{}) (pgx.Rows, error) {
 	ctx, cancel := context.WithTimeout(ctx, 60 * time.Second)
 	defer cancel()
+	type queryRet struct { rows pgx.Rows; err error }
 	c := make(chan queryRet, 1)
 	go func() {
 		rows, err := pdb.Query(ctx, query, args...)

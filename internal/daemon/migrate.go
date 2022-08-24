@@ -84,7 +84,7 @@ func migrateReceivedAmount() {
 	for _, r := range rs {
 		if err := pdbExec(ctx,
 		    "UPDATE receivers SET received_amount=$1,creation_height=$2 WHERE subaddress_index=$3",
-		    r.received, r.creationHeight); err != nil {
+		    r.received, r.creationHeight, r.index); err != nil {
 			log.Fatal().Err(err).Msg("Migration failure")
 		}
 	}

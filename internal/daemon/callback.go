@@ -155,7 +155,7 @@ func fetchTransfers() {
 		log.Error().Err(err).Msg("Failed to get payment requests from database")
 		return
 	}
-	// TODO: Implement caching in a future release here
+	// TODO: Implement caching here in a future release
 	rs := make(map[uint64]*recv)
 	for rows.Next() {
 		var t recv
@@ -172,7 +172,7 @@ func fetchTransfers() {
 		In: true,
 		FilterByHeight: true,
 		// If there are very old rows and they aren't removed, there can be
-		// performance issues.
+		// performance issues
 		MinHeight: findMinCreationHeight(rs),
 	})
 	if err != nil {
@@ -189,7 +189,7 @@ func fetchTransfers() {
 		// 10 block lock is enforced as a blockchain consensus rule
 		if t.Confirmations >= 10 {
 			// If the transfer is unlocked compare the block which it unlocked at
-			// (t.Height + t.UnlockTime) to the block that caused the last callback.
+			// (t.Height + t.UnlockTime) to the block that caused the last callback
 			if t.UnlockTime == 0 || t.UnlockTime - t.Height <= 10 {
 				eventHeight += 10
 				unlocked = true
@@ -232,7 +232,6 @@ func fetchTransfers() {
 }
 
 func callbackRunner() {
-	// Check for new incoming transfers and send out a callback payload.
 	for {
 		fetchTransfers()
 		time.Sleep(30 * time.Second)

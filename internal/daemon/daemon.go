@@ -19,10 +19,7 @@
 
 package daemon
 
-import (
-	"context"
-	"time"
-)
+import "context"
 
 const Version = "2.2.0"
 
@@ -32,9 +29,7 @@ func init() {
 	walletConnect()
 	pdbMigrate()
 	pdbConnect()
-	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
-	defer cancel()
-	readLastCallbackHeight(ctx)
+	readLastCallbackHeight(context.Background())
 	daemonMigrate()
 }
 

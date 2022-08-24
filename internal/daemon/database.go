@@ -54,7 +54,7 @@ func pdbMigrate() {
 }
 
 func pdbQueryRow(ctx context.Context, query string, args ...interface{}) (pgx.Row, error) {
-	ctx, cancel := context.WithTimeout(ctx, 60 * time.Second)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	c := make(chan pgx.Row, 1)
 	go func() { c <- pdb.QueryRow(ctx, query, args...) }()
@@ -67,7 +67,7 @@ func pdbQueryRow(ctx context.Context, query string, args ...interface{}) (pgx.Ro
 }
 
 func pdbQuery(ctx context.Context, query string, args ...interface{}) (pgx.Rows, error) {
-	ctx, cancel := context.WithTimeout(ctx, 60 * time.Second)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	type queryRet struct { rows pgx.Rows; err error }
 	c := make(chan queryRet, 1)
@@ -84,7 +84,7 @@ func pdbQuery(ctx context.Context, query string, args ...interface{}) (pgx.Rows,
 }
 
 func pdbExec(ctx context.Context, query string, args ...interface{}) error {
-	ctx, cancel := context.WithTimeout(ctx, 60 * time.Second)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	c := make(chan error, 1)
 	go func() {

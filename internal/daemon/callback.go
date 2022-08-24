@@ -212,7 +212,7 @@ func fetchTransfers() {
 				continue
 			}
 			log.Info().Uint64("address_index", t.SubaddrIndex.Minor).Uint64("amount", t.Amount).
-			    Str("tx_id", t.Txid).Uint64("callback_height", eventHeight).Bool("unlocked", unlocked).Msg("Sent callback")
+			    Str("tx_id", t.Txid).Uint64("event_height", eventHeight).Bool("unlocked", unlocked).Msg("Sent callback")
 			// Don't depend on wallet-rpc's ordering of transfers
 			if eventHeight > maxHeight {
 				maxHeight = eventHeight

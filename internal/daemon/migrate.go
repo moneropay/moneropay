@@ -73,7 +73,7 @@ func migrateReceivedAmount() {
 				}
 				log.Info().Uint64("address_index", t.SubaddrIndex.Minor).
 				    Uint64("amount", t.Amount).Str("tx_id", t.Txid).
-				    Uint64("callback_height", eventHeight).Bool("unlocked", unlocked).
+				    Uint64("event_height", eventHeight).Bool("unlocked", unlocked).
 				    Msg("Sent callback")
 				if eventHeight > maxHeight {
 					maxHeight = eventHeight

@@ -20,6 +20,10 @@ func migrateReceivedAmount() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to query payment requests to migrate")
 	}
+	h, err := wallet.GetHeight(ctx)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to get wallet height")
+	}
 	rs := make(map[uint64]*recv)
 	for rows.Next() {
 		var t recv
@@ -27,7 +31,7 @@ func migrateReceivedAmount() {
 		    err != nil {
 			log.Fatal().Err(err).Msg("Failed to query payment requests to migrate")
 		}
-		t.creationHeight = lastCallbackHeight
+		t.creationHeight = h.Height
 		rs[t.index] = &t
 	}
 	if len(rs) == 0 {
@@ -57,9 +61,9 @@ func migrateReceivedAmount() {
 				}
 			}
 			// Creation height will be set to the earliest locked payment's height - 1
-			// In case there are no locked transfers, it'll be set to the last callback height
+			// In case there are no locked transfers, it'll be set to the wallet height
 			if !unlocked {
-				if t.Height < (r.creationHeight - 1) {
+				if t.Height < r.creationHeight {
 					r.creationHeight = t.Height - 1
 				}
 			} else {

@@ -88,6 +88,7 @@ func migrateReceivedAmount() {
 			log.Fatal().Err(err).Uint64("height", lastCallbackHeight).
 			    Msg("Failed to save last callback height")
 		}
+		log.Info().Uint64("height", lastCallbackHeight).Msg("Saved last callback height")
 	}
 	log.Info().Msg("Migration ended")
 }

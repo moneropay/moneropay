@@ -85,3 +85,23 @@ func createAddress(ctx context.Context, r *walletrpc.CreateAddressRequest) (*wal
 	wMutex.Unlock()
 	return resp, err
 }
+
+var cryptonoteDefaultTxSpendableAge uint64 = 10
+
+func getTransferLockStatus(t walletrpc.Transfer) (bool, uint64) {
+	locked := true
+	eventHeight := t.Height
+	// 10 block lock is enforced as a blockchain consensus rule
+	if t.Confirmations >= cryptonoteDefaultTxSpendableAge {
+		// If the transfer is unlocked compare the block which it unlocked at
+		// (t.Height + t.UnlockTime) to the block that caused the last callback
+		if t.UnlockTime == 0 || t.UnlockTime - t.Height <= cryptonoteDefaultTxSpendableAge {
+			eventHeight += 10
+			locked = false
+		} else if t.UnlockTime - t.Height <= t.Confirmations {
+			eventHeight = t.UnlockTime
+			locked = false
+		}
+	}
+	return locked, eventHeight
+}

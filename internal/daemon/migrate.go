@@ -46,23 +46,11 @@ func migrateReceivedAmount() {
 	}
 	maxHeight := lastCallbackHeight
 	for _, t := range resp.In {
-		eventHeight := t.Height
-		unlocked := false
 		if r, ok := rs[t.SubaddrIndex.Minor]; ok {
-			if t.Confirmations >= 10 {
-				// If the transfer is unlocked compare the block which it unlocked at
-				// (t.Height + t.UnlockTime) to the block that caused the last callback
-				if t.UnlockTime == 0 || t.UnlockTime - t.Height < 10 {
-					eventHeight += 10
-					unlocked = true
-				} else if t.UnlockTime - t.Height <= t.Confirmations {
-					eventHeight = t.UnlockTime
-					unlocked = true
-				}
-			}
+			locked, eventHeight := getTransferLockStatus(t)
 			// Creation height will be set to the earliest locked payment's height - 1
 			// In case there are no locked transfers, it'll be set to the wallet height
-			if !unlocked {
+			if locked {
 				if t.Height < r.creationHeight {
 					r.creationHeight = t.Height - 1
 				}
@@ -70,14 +58,16 @@ func migrateReceivedAmount() {
 				r.received += t.Amount
 			}
 			if eventHeight > lastCallbackHeight {
-				if err := callback(ctx, r, &t); err != nil {
-					log.Error().Err(err).Str("tx_id", t.Txid).
+				if err := callback(ctx, r, &t, locked); err != nil {
+					log.Error().Err(err).Uint64("address_index", t.SubaddrIndex.Minor).
+					    Uint64("amount", t.Amount).Str("tx_id", t.Txid).
+					    Uint64("event_height", eventHeight).Bool("locked", locked).
 					    Msg("Failed callback")
 					continue
 				}
 				log.Info().Uint64("address_index", t.SubaddrIndex.Minor).
 				    Uint64("amount", t.Amount).Str("tx_id", t.Txid).
-				    Uint64("event_height", eventHeight).Bool("unlocked", unlocked).
+				    Uint64("event_height", eventHeight).Bool("locked", locked).
 				    Msg("Sent callback")
 				if eventHeight > maxHeight {
 					maxHeight = eventHeight
@@ -93,6 +83,7 @@ func migrateReceivedAmount() {
 		}
 	}
 	if maxHeight > lastCallbackHeight {
+		lastCallbackHeight = maxHeight
 		if err := saveLastCallbackHeight(ctx); err != nil {
 			log.Fatal().Err(err).Uint64("height", lastCallbackHeight).
 			    Msg("Failed to save last callback height")

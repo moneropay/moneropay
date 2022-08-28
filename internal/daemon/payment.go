@@ -106,7 +106,7 @@ type recvData struct {
 	Complete bool `json:"complete"`
 	Description string `json:"description,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
-	Transactions []ReceiveTransaction `json:"transactions"`
+	Transactions []TransactionData `json:"transactions"`
 }
 
 func GetPaymentRequest(ctx context.Context, address string, min, max uint64) (recvData, error) {
@@ -124,15 +124,12 @@ func GetPaymentRequest(ctx context.Context, address string, min, max uint64) (re
 	}
 	var total, unlocked uint64
 	for _, r1 := range tx {
-		if r1.Confirmations >= 10 {
-			if r1.UnlockTime == 0 || r1.UnlockTime - r1.Height < 10 {
-				unlocked += r1.Amount
-			} else if r1.UnlockTime - r1.Height <= r1.Confirmations {
-				unlocked += r1.Amount
-			}
+		isLocked, _ := getTransferLockStatus(r1)
+		if !isLocked {
+			unlocked += r1.Amount
 		}
 		total += r1.Amount
-		r2 := ReceiveTransaction{
+		r2 := TransactionData{
 			Amount: r1.Amount,
 			Confirmations: r1.Confirmations,
 			DoubleSpendSeen: r1.DoubleSpendSeen,
@@ -141,6 +138,7 @@ func GetPaymentRequest(ctx context.Context, address string, min, max uint64) (re
 			Timestamp: time.Unix(int64(r1.Timestamp), 0),
 			TxHash: r1.Txid,
 			UnlockTime: r1.UnlockTime,
+			Locked: isLocked,
 		}
 		d.Transactions = append(d.Transactions, r2)
 	}

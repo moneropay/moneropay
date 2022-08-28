@@ -37,7 +37,7 @@ type recv struct {
 	updated bool
 }
 
-type ReceiveTransaction struct {
+type TransactionData struct {
 	Amount uint64 `json:"amount"`
 	Confirmations uint64 `json:"confirmations"`
 	DoubleSpendSeen bool `json:"double_spend_seen"`
@@ -46,6 +46,7 @@ type ReceiveTransaction struct {
 	Timestamp time.Time `json:"timestamp"`
 	TxHash string `json:"tx_hash"`
 	UnlockTime uint64 `json:"unlock_time"`
+	Locked bool `json:"locked"`
 }
 
 type callbackRequest struct {
@@ -59,7 +60,7 @@ type callbackRequest struct {
 	Complete bool `json:"complete"`
 	Description string `json:"description,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
-	Transaction ReceiveTransaction `json:"transaction"`
+	Transaction TransactionData `json:"transaction"`
 }
 
 var lastCallbackHeight uint64
@@ -92,7 +93,7 @@ func sendCallbackRequest(d callbackRequest, u string) error {
 	return err
 }
 
-func callback(ctx context.Context, r *recv, t *walletrpc.Transfer) error {
+func callback(ctx context.Context, r *recv, t *walletrpc.Transfer, locked bool) error {
 	resp, err := Balance(ctx, []uint64{r.index})
 	if err != nil {
 		return err
@@ -106,7 +107,7 @@ func callback(ctx context.Context, r *recv, t *walletrpc.Transfer) error {
 	d.Complete = d.Amount.Covered.Unlocked >= d.Amount.Expected
 	d.Description = r.description
 	d.CreatedAt = r.createdAt
-	d.Transaction = ReceiveTransaction{
+	d.Transaction = TransactionData{
 		Amount: t.Amount,
 		Confirmations: t.Confirmations,
 		DoubleSpendSeen: t.DoubleSpendSeen,
@@ -115,6 +116,7 @@ func callback(ctx context.Context, r *recv, t *walletrpc.Transfer) error {
 		Timestamp: time.Unix(int64(t.Timestamp), 0),
 		TxHash: t.Txid,
 		UnlockTime: t.UnlockTime,
+		Locked: locked,
 	}
 	return sendCallbackRequest(d, r.callbackUrl)
 }
@@ -184,35 +186,24 @@ func fetchTransfers() {
 	}
 	maxHeight := lastCallbackHeight
 	for _, t := range resp.In {
-		unlocked := false
-		eventHeight := t.Height
-		// 10 block lock is enforced as a blockchain consensus rule
-		if t.Confirmations >= 10 {
-			// If the transfer is unlocked compare the block which it unlocked at
-			// (t.Height + t.UnlockTime) to the block that caused the last callback
-			if t.UnlockTime == 0 || t.UnlockTime - t.Height <= 10 {
-				eventHeight += 10
-				unlocked = true
-			} else if t.UnlockTime - t.Height <= t.Confirmations {
-				eventHeight = t.UnlockTime
-				unlocked = true
-			}
-		}
+		locked, eventHeight := getTransferLockStatus(t)
 		if eventHeight <= lastCallbackHeight {
 			continue
 		}
 		if r, ok := rs[t.SubaddrIndex.Minor]; ok {
-			if unlocked {
+			if !locked {
 				r.received += t.Amount
 				r.updated = true
 			}
-			if err = callback(ctx, r, &t); err != nil {
-				log.Error().Err(err).Str("tx_id", t.Txid).
+			if err = callback(ctx, r, &t, locked); err != nil {
+				log.Error().Err(err).Uint64("address_index", t.SubaddrIndex.Minor).
+				    Uint64("amount", t.Amount).Str("tx_id", t.Txid).
+				    Uint64("event_height", eventHeight).Bool("locked", locked).
 				    Msg("Failed callback")
 			} else {
 				log.Info().Uint64("address_index", t.SubaddrIndex.Minor).Uint64("amount", t.Amount).
 				    Str("tx_id", t.Txid).Uint64("event_height", eventHeight).
-				    Bool("unlocked", unlocked).Msg("Sent callback")
+				    Bool("locked", locked).Msg("Sent callback")
 			}
 			// Don't depend on wallet-rpc's ordering of transfers
 			if eventHeight > maxHeight {

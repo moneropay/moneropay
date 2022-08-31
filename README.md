@@ -4,7 +4,8 @@ A backend service for receiving, sending and tracking status of Monero payments.
 MoneroPay provides a simple HTTP API for merchants or individuals who want to accept XMR.
 MoneroPay supports optional status updates via HTTP Callbacks.
 
-[See here](https://donate.kernal.eu) for an example donation page utilizing MoneroPay.
+[See here](https://donate.kernal.eu) for a donation page utilizing MoneroPay.
+Documentation on MoneroPay can be found [here](https://moneropay.eu).
 
 ## Endpoints
 | Method | URI                            | Input                                                                                 |
@@ -87,13 +88,14 @@ curl -s -X GET "${endpoint}/receive/${address}?min=${min_height}&max=${max_heigh
   "transactions": [
     {
       "amount": 200000000,
-      "confirmations": 4799,
+      "confirmations": 10,
       "double_spend_seen": false,
       "fee": 9200000,
       "height": 2402648,
       "timestamp": "2022-07-11T19:19:05Z",
       "tx_hash": "0c9a7b40b15596fa9a06ba32463a19d781c075120bb59ab5e4ed2a97ab3b7f33",
-      "unlock_time": 0
+      "unlock_time": 0,
+      "locked": false
     }
   ]
 }
@@ -164,13 +166,14 @@ curl -s -X GET "${endpoint}/transfer/${tx_hash}"
   "created_at": "2022-07-11T19:04:24.574583Z",
   "transaction": {
     "amount": 200000000,
-    "confirmations": 4799,
+    "confirmations": 10,
     "double_spend_seen": false,
     "fee": 9200000,
     "height": 2402648,
     "timestamp": "2022-07-11T19:19:05Z",
     "tx_hash": "0c9a7b40b15596fa9a06ba32463a19d781c075120bb59ab5e4ed2a97ab3b7f33",
-    "unlock_time": 0
+    "unlock_time": 0,
+    "locked": false
   }
 }
 ```
@@ -181,6 +184,7 @@ $ ./moneropay -h
 Usage of ./moneropay:
   -bind="localhost:5000": Bind address:port for moneropayd
   -config="": Path to configuration file
+  -log-format="pretty": Log format (pretty or json)
   -postgresql="postgresql://moneropay:s3cret@localhost:5432/moneropay": PostgreSQL connection string
   -rpc-address="http://localhost:18082/json_rpc": Wallet RPC server address
   -rpc-password="": Password for monero-wallet-rpc

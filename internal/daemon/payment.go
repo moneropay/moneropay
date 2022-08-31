@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v4"
+	"github.com/rs/zerolog/log"
 	"gitlab.com/moneropay/go-monero/walletrpc"
 )
 
@@ -38,20 +39,26 @@ func Receive(ctx context.Context, xmr uint64, desc, callbackUrl string) (string,
 	if err != nil {
 		return "", time.Time{}, err
 	}
-	if _, err = tx.Exec(ctx, "INSERT INTO subaddresses (address_index, address) VALUES ($1, $2)",
+	if _, err = tx.Exec(ctx, "INSERT INTO subaddresses(address_index,address)VALUES($1,$2)",
 	    resp.AddressIndex, resp.Address); err != nil {
 		tx.Rollback(ctx)
 		return "", time.Time{}, err
 	}
-	if _, err = tx.Exec(ctx, "INSERT INTO receivers (subaddress_index, expected_amount, " +
-	    "description, callback_url, created_at) VALUES ($1, $2, $3, $4, $5)",
-	    resp.AddressIndex, xmr, desc, callbackUrl, t); err != nil {
+	h, err := wallet.GetHeight(ctx)
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	if _, err = tx.Exec(ctx, "INSERT INTO receivers(subaddress_index,expected_amount,description," +
+	    "callback_url,created_at,received_amount,creation_height)VALUES($1,$2,$3,$4,$5,0,$6)",
+	    resp.AddressIndex, xmr, desc, callbackUrl, t, h.Height); err != nil {
 		tx.Rollback(ctx)
 		return "", time.Time{}, err
 	}
 	if err = tx.Commit(ctx); err != nil {
 		return "", time.Time{}, err
 	}
+	log.Info().Uint64("amount", xmr).Str("description", desc).Str("callback_url",callbackUrl).
+	    Msg("Created new payment request")
 	return resp.Address, t, err
 }
 
@@ -61,23 +68,20 @@ type Receiver struct {
 	CreatedAt time.Time
 }
 
-func GetReceiver(ctx context.Context, address string) (Receiver, error) {
-	type ret struct {resp Receiver; err error}
-	c := make(chan ret)
-	go func() {
-		var r ret
-		row := pdb.QueryRow(ctx, "SELECT address_index, expected_amount, description, created_at " +
-		    "FROM subaddresses, receivers WHERE address_index=subaddress_index AND address=$1", address)
-		r.err = row.Scan(&r.resp.Index, &r.resp.Expected, &r.resp.Description, &r.resp.CreatedAt)
-		c <- r
-	}()
-	select {
-		case <-ctx.Done(): return Receiver{}, ctx.Err()
-		case r := <-c: return r.resp, r.err
+func getReceiver(ctx context.Context, address string) (Receiver, error) {
+	var r Receiver
+	row, err := pdbQueryRow(ctx,
+	    "SELECT address_index,expected_amount,description,created_at " +
+	    "FROM subaddresses,receivers WHERE address_index=subaddress_index AND address=$1",
+	    address)
+	if err != nil {
+		return r, err
 	}
+	err = row.Scan(&r.Index, &r.Expected, &r.Description, &r.CreatedAt)
+	return r, err
 }
 
-func GetReceived(ctx context.Context, index, min, max uint64) ([]walletrpc.Transfer, error) {
+func getReceivedTransfers(ctx context.Context, index, min, max uint64) ([]walletrpc.Transfer, error) {
 	resp, err := GetTransfers(ctx, &walletrpc.GetTransfersRequest{
 		SubaddrIndices: []uint64{index},
 		In: true,
@@ -89,4 +93,60 @@ func GetReceived(ctx context.Context, index, min, max uint64) ([]walletrpc.Trans
 		return nil, err
 	}
 	return resp.In, nil
+}
+
+type recvData struct {
+	Amount struct {
+		Expected uint64 `json:"expected"`
+		Covered struct {
+			Total uint64 `json:"total"`
+			Unlocked uint64 `json:"unlocked"`
+		} `json:"covered"`
+	} `json:"amount"`
+	Complete bool `json:"complete"`
+	Description string `json:"description,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+	Transactions []TransactionData `json:"transactions"`
+}
+
+func GetPaymentRequest(ctx context.Context, address string, min, max uint64) (recvData, error) {
+	var d recvData
+	// Get data for address from DB.
+	recv, err := getReceiver(ctx, address)
+	if err != nil {
+		return d, err
+	}
+	// TODO: This call to wallet RPC can be avoided by caching the
+	// get_transfers response in the callback runner
+	tx, err := getReceivedTransfers(ctx, recv.Index, min, max)
+	if err != nil {
+		return d, err
+	}
+	var total, unlocked uint64
+	for _, r1 := range tx {
+		isLocked, _ := getTransferLockStatus(r1)
+		if !isLocked {
+			unlocked += r1.Amount
+		}
+		total += r1.Amount
+		r2 := TransactionData{
+			Amount: r1.Amount,
+			Confirmations: r1.Confirmations,
+			DoubleSpendSeen: r1.DoubleSpendSeen,
+			Fee: r1.Fee,
+			Height: r1.Height,
+			Timestamp: time.Unix(int64(r1.Timestamp), 0),
+			TxHash: r1.Txid,
+			UnlockTime: r1.UnlockTime,
+			Locked: isLocked,
+		}
+		d.Transactions = append(d.Transactions, r2)
+	}
+	d.Amount.Expected = recv.Expected
+	d.Description = recv.Description
+	d.CreatedAt = recv.CreatedAt
+	d.Amount.Covered.Total = total
+	d.Amount.Covered.Unlocked = unlocked
+	d.Complete = d.Amount.Covered.Unlocked >= d.Amount.Expected
+	return d, nil
 }

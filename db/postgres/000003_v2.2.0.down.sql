@@ -1,0 +1,4 @@
+BEGIN;
+ALTER TABLE IF EXISTS receivers DROP COLUMN IF EXISTS received_amount,
+DROP COLUMN IF EXISTS creation_height;
+COMMIT;

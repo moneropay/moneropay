@@ -21,11 +21,11 @@ package daemon
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"sync"
 
 	"github.com/gabstv/httpdigest"
+	"github.com/rs/zerolog/log"
 	"gitlab.com/moneropay/go-monero/walletrpc"
 )
 
@@ -36,7 +36,7 @@ var WalletPrimaryAddress string
 func readWalletPrimaryAddress() {
 	resp, err := wallet.GetAddress(context.Background(), &walletrpc.GetAddressRequest{AddressIndex: []uint64{0}})
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg("Startup failure")
 	}
 	WalletPrimaryAddress = resp.Address
 }
@@ -84,4 +84,24 @@ func createAddress(ctx context.Context, r *walletrpc.CreateAddressRequest) (*wal
 	resp, err := wallet.CreateAddress(ctx, r)
 	wMutex.Unlock()
 	return resp, err
+}
+
+var cryptonoteDefaultTxSpendableAge uint64 = 10
+
+func getTransferLockStatus(t walletrpc.Transfer) (bool, uint64) {
+	locked := true
+	eventHeight := t.Height
+	// 10 block lock is enforced as a blockchain consensus rule
+	if t.Confirmations >= cryptonoteDefaultTxSpendableAge {
+		// If the transfer is unlocked compare the block which it unlocked at
+		// (t.Height + t.UnlockTime) to the block that caused the last callback
+		if t.UnlockTime == 0 || t.UnlockTime - t.Height <= cryptonoteDefaultTxSpendableAge {
+			eventHeight += 10
+			locked = false
+		} else if t.UnlockTime - t.Height <= t.Confirmations {
+			eventHeight = t.UnlockTime
+			locked = false
+		}
+	}
+	return locked, eventHeight
 }

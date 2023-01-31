@@ -23,7 +23,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
 	"github.com/rs/zerolog/log"
 	"gitlab.com/moneropay/go-monero/walletrpc"
 )

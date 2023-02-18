@@ -23,8 +23,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog/log"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -35,7 +35,7 @@ var pdb *pgxpool.Pool
 
 func pdbConnect() {
 	var err error
-	if pdb, err = pgxpool.Connect(context.Background(), Config.postgresCS); err != nil {
+	if pdb, err = pgxpool.New(context.Background(), Config.postgresCS); err != nil {
 		log.Fatal().Err(err).Msg("Startup failure")
 	}
 }

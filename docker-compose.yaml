@@ -1,9 +1,9 @@
 services:
   monero-wallet-rpc:
-    image: sethsimmons/simple-monero-wallet-rpc:v0.18.1.0
-    command: --wallet-file wallet --password-file wallet.passwd --disable-rpc-login --rpc-bind-port 28081 --daemon-host ${MONERO_DAEMON_RPC_HOSTNAME} --daemon-port ${MONERO_DAEMON_RPC_PORT} --confirm-external-bind --rpc-bind-ip 0.0.0.0
+    image: ghcr.io/sethforprivacy/simple-monero-wallet-rpc:v0.18.1.2
+    command: --wallet-file wallet --password-file wallet.passwd --disable-rpc-login --rpc-bind-port=28081 --daemon-host=${MONERO_DAEMON_RPC_HOSTNAME} --daemon-port=${MONERO_DAEMON_RPC_PORT} --max-log-files=0 --max-log-file-size=0
     volumes:
-      - ./data/wallet:/home/monero
+      - ./data/wallet:/home/monero/wallet
     restart: unless-stopped
 
   postgresql:

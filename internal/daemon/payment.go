@@ -26,6 +26,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/rs/zerolog/log"
 	"gitlab.com/moneropay/go-monero/walletrpc"
+
+	"gitlab.com/moneropay/moneropay/v2/model"
 )
 
 func Receive(ctx context.Context, xmr uint64, desc, callbackUrl string) (string, time.Time, error) {
@@ -95,22 +97,9 @@ func getReceivedTransfers(ctx context.Context, index, min, max uint64) ([]wallet
 	return resp.In, nil
 }
 
-type recvData struct {
-	Amount struct {
-		Expected uint64 `json:"expected"`
-		Covered struct {
-			Total uint64 `json:"total"`
-			Unlocked uint64 `json:"unlocked"`
-		} `json:"covered"`
-	} `json:"amount"`
-	Complete bool `json:"complete"`
-	Description string `json:"description,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
-	Transactions []TransactionData `json:"transactions"`
-}
 
-func GetPaymentRequest(ctx context.Context, address string, min, max uint64) (recvData, error) {
-	var d recvData
+func GetPaymentRequest(ctx context.Context, address string, min, max uint64) (model.ReceiveGetResponse, error) {
+	var d model.ReceiveGetResponse
 	// Get data for address from DB.
 	recv, err := getReceiver(ctx, address)
 	if err != nil {
@@ -129,7 +118,7 @@ func GetPaymentRequest(ctx context.Context, address string, min, max uint64) (re
 			unlocked += r1.Amount
 		}
 		total += r1.Amount
-		r2 := TransactionData{
+		r2 := model.TransactionData{
 			Amount: r1.Amount,
 			Confirmations: r1.Confirmations,
 			DoubleSpendSeen: r1.DoubleSpendSeen,

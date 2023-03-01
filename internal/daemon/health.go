@@ -23,18 +23,12 @@ import (
 	"context"
 	"net/http"
 	"time"
+
+	"gitlab.com/moneropay/moneropay/v2/model"
 )
 
-type HealthStatus struct {
-	Status int `json:"status"`
-	Services struct {
-		WalletRPC bool `json:"walletrpc"`
-		PostgreSQL bool `json:"postgresql"`
-	} `json:"services"`
-}
-
-func Health(ctx context.Context) (HealthStatus) {
-	d := HealthStatus{Status: http.StatusOK}
+func Health(ctx context.Context) (model.HealthResponse) {
+	d := model.HealthResponse{Status: http.StatusOK}
 	ctx, c1 := context.WithTimeout(context.Background(), 10 * time.Second)
 	defer c1()
 	if err := pdb.Ping(ctx); err == nil {

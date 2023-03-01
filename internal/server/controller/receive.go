@@ -23,28 +23,15 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 
 	"gitlab.com/moneropay/moneropay/v2/internal/daemon"
+	"gitlab.com/moneropay/moneropay/v2/model"
 )
 
-type receivePostRequest struct {
-	Amount uint64 `json:"amount"`
-	CallbackUrl string `json:"callback_url"`
-	Description string `json:"description,omitempty"`
-}
-
-type receivePostResponse struct {
-	Address string `json:"address"`
-	Amount uint64 `json:"amount"`
-	Description string `json:"description,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
-}
-
 func ReceivePostHandler(w http.ResponseWriter, r *http.Request) {
-	var j receivePostRequest
+	var j model.ReceivePostRequest
 	if err := json.NewDecoder(r.Body).Decode(&j); err != nil {
 		writeError(w, http.StatusBadRequest, nil, err.Error())
 		return
@@ -54,7 +41,7 @@ func ReceivePostHandler(w http.ResponseWriter, r *http.Request) {
 		writeComplexError(w, err)
 		return
 	}
-	d := receivePostResponse{
+	d := model.ReceivePostResponse{
 		Address: a,
 		Amount: j.Amount,
 		Description: j.Description,

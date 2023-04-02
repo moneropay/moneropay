@@ -28,6 +28,8 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"gitlab.com/moneropay/go-monero/walletrpc"
+
+	"gitlab.com/moneropay/moneropay/v2/pkg/model"
 )
 
 type recv struct {
@@ -35,18 +37,6 @@ type recv struct {
 	description, callbackUrl string
 	createdAt time.Time
 	updated bool
-}
-
-type TransactionData struct {
-	Amount uint64 `json:"amount"`
-	Confirmations uint64 `json:"confirmations"`
-	DoubleSpendSeen bool `json:"double_spend_seen"`
-	Fee uint64 `json:"fee"`
-	Height uint64 `json:"height"`
-	Timestamp time.Time `json:"timestamp"`
-	TxHash string `json:"tx_hash"`
-	UnlockTime uint64 `json:"unlock_time"`
-	Locked bool `json:"locked"`
 }
 
 type callbackRequest struct {
@@ -60,7 +50,7 @@ type callbackRequest struct {
 	Complete bool `json:"complete"`
 	Description string `json:"description,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
-	Transaction TransactionData `json:"transaction"`
+	Transaction model.TransactionData `json:"transaction"`
 }
 
 var lastCallbackHeight uint64
@@ -107,7 +97,7 @@ func callback(ctx context.Context, r *recv, t *walletrpc.Transfer, locked bool) 
 	d.Complete = d.Amount.Covered.Unlocked >= d.Amount.Expected
 	d.Description = r.description
 	d.CreatedAt = r.createdAt
-	d.Transaction = TransactionData{
+	d.Transaction = model.TransactionData{
 		Amount: t.Amount,
 		Confirmations: t.Confirmations,
 		DoubleSpendSeen: t.DoubleSpendSeen,
@@ -195,15 +185,18 @@ func fetchTransfers() {
 				r.received += t.Amount
 				r.updated = true
 			}
-			if err = callback(ctx, r, &t, locked); err != nil {
-				log.Error().Err(err).Uint64("address_index", t.SubaddrIndex.Minor).
-				    Uint64("amount", t.Amount).Str("tx_id", t.Txid).
-				    Uint64("event_height", eventHeight).Bool("locked", locked).
-				    Msg("Failed callback")
-			} else {
-				log.Info().Uint64("address_index", t.SubaddrIndex.Minor).Uint64("amount", t.Amount).
-				    Str("tx_id", t.Txid).Uint64("event_height", eventHeight).
-				    Bool("locked", locked).Msg("Sent callback")
+			if r.callbackUrl != "" {
+				if err = callback(ctx, r, &t, locked); err != nil {
+					log.Error().Err(err).Uint64("address_index", t.SubaddrIndex.Minor).
+						Uint64("amount", t.Amount).Str("tx_id", t.Txid).
+						Uint64("event_height", eventHeight).Bool("locked", locked).
+						Msg("Failed callback")
+				} else {
+					log.Info().Uint64("address_index", t.SubaddrIndex.Minor).
+						Uint64("amount", t.Amount).Str("tx_id", t.Txid).
+						Uint64("event_height", eventHeight).Bool("locked", locked).
+						Msg("Sent callback")
+				}
 			}
 			// Don't depend on wallet-rpc's ordering of transfers
 			if eventHeight > maxHeight {

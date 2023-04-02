@@ -26,17 +26,12 @@ import (
 	"net/http"
 
 	"gitlab.com/moneropay/go-monero/walletrpc"
+	"gitlab.com/moneropay/moneropay/v2/pkg/model"
 )
-
-type errorResponse struct {
-	Status int `json:"status"`
-	Code *int `json:"code,omitempty"`
-	Message string `json:"message"`
-}
 
 func writeError(w http.ResponseWriter, status int, code *int, message string) {
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(errorResponse{
+	json.NewEncoder(w).Encode(model.ErrorResponse{
 		Status: status,
 		Code: code,
 		Message: message,

@@ -28,34 +28,11 @@ import (
 	"gitlab.com/moneropay/go-monero/walletrpc"
 
 	"gitlab.com/moneropay/moneropay/v2/internal/daemon"
+	"gitlab.com/moneropay/moneropay/v2/pkg/model"
 )
 
-type transferPostRequest struct {
-	Destinations []walletrpc.Destination `json:"destinations"`
-}
-
-type transferPostResponse struct {
-	Amount uint64 `json:"amount"`
-	Fee uint64 `json:"fee"`
-	TxHash string `json:"tx_hash"`
-	Destinations []walletrpc.Destination `json:"destinations"`
-}
-
-type transferGetResponse struct {
-	Amount uint64 `json:"amount"`
-	Fee uint64 `json:"fee"`
-	State string `json:"state"`
-	Destinations []walletrpc.Destination `json:"transfer"`
-	Confirmations uint64 `json:"confirmations"`
-	DoubleSpendSeen bool `json:"double_spend_seen"`
-	Height uint64 `json:"height"`
-	Timestamp time.Time `json:"timestamp"`
-	UnlockTime uint64 `json:"unlock_time"`
-	TxHash string `json:"tx_hash"`
-}
-
 func TransferPostHandler(w http.ResponseWriter, r *http.Request) {
-	var j transferPostRequest
+	var j model.TransferPostRequest
 	if err := json.NewDecoder(r.Body).Decode(&j); err != nil {
 		writeError(w, http.StatusBadRequest, nil, err.Error())
 		return
@@ -70,7 +47,7 @@ func TransferPostHandler(w http.ResponseWriter, r *http.Request) {
 		writeComplexError(w, err)
 		return
 	}
-	d := transferPostResponse{
+	d := model.TransferPostResponse{
 		Amount: resp.Amount,
 		Fee: resp.Fee,
 		TxHash: resp.TxHash,
@@ -96,7 +73,7 @@ func TransferGetHandler(w http.ResponseWriter, r *http.Request) {
 		resp.Transfer.Type = "completed"
 	}
 
-	d := transferGetResponse{
+	d := model.TransferGetResponse{
 		Amount: resp.Transfer.Amount,
 		Fee: resp.Transfer.Fee,
 		State: resp.Transfer.Type,

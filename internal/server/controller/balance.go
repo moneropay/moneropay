@@ -24,12 +24,8 @@ import (
 	"net/http"
 
 	"gitlab.com/moneropay/moneropay/v2/internal/daemon"
+	"gitlab.com/moneropay/moneropay/v2/pkg/model"
 )
-
-type balanceResponse struct {
-	Total uint64 `json:"total"`
-	Unlocked uint64 `json:"unlocked"`
-}
 
 func BalanceHandler(w http.ResponseWriter, r *http.Request) {
 	resp, err := daemon.Balance(r.Context(), []uint64{0})
@@ -37,7 +33,7 @@ func BalanceHandler(w http.ResponseWriter, r *http.Request) {
 		writeComplexError(w, err)
 		return
 	}
-	b := balanceResponse{
+	b := model.BalanceResponse{
 		Total: resp.Balance,
 		Unlocked: resp.UnlockedBalance,
 	}

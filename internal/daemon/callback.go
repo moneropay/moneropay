@@ -185,15 +185,18 @@ func fetchTransfers() {
 				r.received += t.Amount
 				r.updated = true
 			}
-			if err = callback(ctx, r, &t, locked); err != nil {
-				log.Error().Err(err).Uint64("address_index", t.SubaddrIndex.Minor).
-				    Uint64("amount", t.Amount).Str("tx_id", t.Txid).
-				    Uint64("event_height", eventHeight).Bool("locked", locked).
-				    Msg("Failed callback")
-			} else {
-				log.Info().Uint64("address_index", t.SubaddrIndex.Minor).Uint64("amount", t.Amount).
-				    Str("tx_id", t.Txid).Uint64("event_height", eventHeight).
-				    Bool("locked", locked).Msg("Sent callback")
+			if r.callbackUrl != "" {
+				if err = callback(ctx, r, &t, locked); err != nil {
+					log.Error().Err(err).Uint64("address_index", t.SubaddrIndex.Minor).
+						Uint64("amount", t.Amount).Str("tx_id", t.Txid).
+						Uint64("event_height", eventHeight).Bool("locked", locked).
+						Msg("Failed callback")
+				} else {
+					log.Info().Uint64("address_index", t.SubaddrIndex.Minor).
+						Uint64("amount", t.Amount).Str("tx_id", t.Txid).
+						Uint64("event_height", eventHeight).Bool("locked", locked).
+						Msg("Sent callback")
+				}
 			}
 			// Don't depend on wallet-rpc's ordering of transfers
 			if eventHeight > maxHeight {

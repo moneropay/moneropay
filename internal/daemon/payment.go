@@ -27,7 +27,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"gitlab.com/moneropay/go-monero/walletrpc"
 
-	"gitlab.com/moneropay/moneropay/v2/model"
+	"gitlab.com/moneropay/moneropay/v2/pkg/model"
 )
 
 func Receive(ctx context.Context, xmr uint64, desc, callbackUrl string) (string, time.Time, error) {

@@ -24,7 +24,7 @@ import (
 	"net/http"
 	"time"
 
-	"gitlab.com/moneropay/moneropay/v2/model"
+	"gitlab.com/moneropay/moneropay/v2/pkg/model"
 )
 
 func Health(ctx context.Context) (model.HealthResponse) {

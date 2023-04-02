@@ -24,7 +24,7 @@ import (
 	"net/http"
 
 	"gitlab.com/moneropay/moneropay/v2/internal/daemon"
-	"gitlab.com/moneropay/moneropay/v2/model"
+	"gitlab.com/moneropay/moneropay/v2/pkg/model"
 )
 
 func BalanceHandler(w http.ResponseWriter, r *http.Request) {

@@ -27,7 +27,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"gitlab.com/moneropay/moneropay/v2/internal/daemon"
-	"gitlab.com/moneropay/moneropay/v2/model"
+	"gitlab.com/moneropay/moneropay/v2/pkg/model"
 )
 
 func ReceivePostHandler(w http.ResponseWriter, r *http.Request) {

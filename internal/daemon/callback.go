@@ -29,7 +29,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"gitlab.com/moneropay/go-monero/walletrpc"
 
-	"gitlab.com/moneropay/moneropay/v2/model"
+	"gitlab.com/moneropay/moneropay/v2/pkg/model"
 )
 
 type recv struct {

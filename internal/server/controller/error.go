@@ -26,7 +26,7 @@ import (
 	"net/http"
 
 	"gitlab.com/moneropay/go-monero/walletrpc"
-	"gitlab.com/moneropay/moneropay/v2/model"
+	"gitlab.com/moneropay/moneropay/v2/pkg/model"
 )
 
 func writeError(w http.ResponseWriter, status int, code *int, message string) {

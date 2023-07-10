@@ -39,20 +39,6 @@ type recv struct {
 	updated bool
 }
 
-type callbackRequest struct {
-	Amount struct {
-		Expected uint64 `json:"expected"`
-		Covered struct {
-			Total uint64 `json:"total"`
-			Unlocked uint64 `json:"unlocked"`
-		} `json:"covered"`
-	} `json:"amount"`
-	Complete bool `json:"complete"`
-	Description string `json:"description,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
-	Transaction model.TransactionData `json:"transaction"`
-}
-
 var lastCallbackHeight uint64
 
 func readLastCallbackHeight(ctx context.Context) {
@@ -70,7 +56,7 @@ func saveLastCallbackHeight(ctx context.Context) error {
 		    lastCallbackHeight)
 }
 
-func sendCallbackRequest(d callbackRequest, u string) error {
+func sendCallbackRequest(d model.CallbackResponse, u string) error {
 	j, _ := json.Marshal(d)
 	req, err := http.NewRequest(http.MethodPost, u, bytes.NewBuffer(j))
 	if err != nil {
@@ -89,7 +75,7 @@ func callback(ctx context.Context, r *recv, t *walletrpc.Transfer, locked bool) 
 		return err
 	}
 	// Prepare a callback json payload.
-	var d callbackRequest
+	var d model.CallbackResponse
 	d.Amount.Expected = r.expected
 	d.Amount.Covered.Total = r.received + (resp.PerSubaddress[0].Balance -
 	    resp.PerSubaddress[0].UnlockedBalance)

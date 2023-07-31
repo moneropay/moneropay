@@ -29,7 +29,9 @@ type config struct {
 	TransferMixin uint64
 	TransferPriority uint
 	TransferUnlockTime uint64
-	postgresCS string
+	dbCS string
+	dbDriver string
+	sqliteFilePath string
 	logFormat string
 }
 
@@ -43,7 +45,9 @@ func loadConfig() {
 	flag.Uint64Var(&Config.TransferMixin, "transfer-mixin", 8, "Number of outputs from the blockchain to mix with (0 means no mixing)")
 	flag.UintVar(&Config.TransferPriority, "transfer-priority", 0, "Set a priority for transactions")
 	flag.Uint64Var(&Config.TransferUnlockTime, "transfer-unlock-time", 10, "Number of blocks before the monero can be spent (0 to not add a lock)")
-	flag.StringVar(&Config.postgresCS, "postgresql", "postgresql://moneropay:s3cret@localhost:5432/moneropay", "PostgreSQL connection string")
+	flag.StringVar(&Config.dbDriver, "db-driver", "postgres", "The database driver to use. Can be postgres or sqlite3.") // TODO: validate
+	flag.StringVar(&Config.dbCS, "db-conn-string", "postgresql://moneropay:s3cret@localhost:5432/moneropay", "Database connection string")
+	flag.StringVar(&Config.sqliteFilePath, "sqlite3-file-path", "./db.sqlite3", "For sqlite3, the path to the database file (used separately from db-conn-string).")
 	flag.StringVar(&Config.logFormat, "log-format", "pretty", "Log format (pretty or json)")
 	flag.String(flag.DefaultConfigFlagname, "", "Path to configuration file")
 	flag.Parse()

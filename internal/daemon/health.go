@@ -27,21 +27,21 @@ import (
 	"gitlab.com/moneropay/moneropay/v2/pkg/model"
 )
 
-func Health(ctx context.Context) (model.HealthResponse) {
+func Health(ctx context.Context) model.HealthResponse {
 	d := model.HealthResponse{Status: http.StatusOK}
-	ctx, c1 := context.WithTimeout(context.Background(), 10 * time.Second)
+	ctx, c1 := context.WithTimeout(context.Background(), 10*time.Second)
 	defer c1()
-	if err := pdb.Ping(ctx); err == nil {
-		d.Services.PostgreSQL = true
+	if err := pdb.PingContext(ctx); err == nil {
+		d.Services.Database = true
 	}
-	ctx, c2 := context.WithTimeout(context.Background(), 10 * time.Second)
+	ctx, c2 := context.WithTimeout(context.Background(), 10*time.Second)
 	defer c2()
 	wMutex.Lock()
 	if _, err := wallet.GetHeight(ctx); err == nil {
 		d.Services.WalletRPC = true
 	}
 	wMutex.Unlock()
-	if !d.Services.PostgreSQL || !d.Services.WalletRPC {
+	if !d.Services.Database || !d.Services.WalletRPC {
 		d.Status = http.StatusServiceUnavailable
 	}
 	return d

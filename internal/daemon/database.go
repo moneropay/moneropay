@@ -23,25 +23,38 @@ import (
 	"context"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"database/sql"
+
+	_ "github.com/lib/pq"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/rs/zerolog/log"
+
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/database/sqlite3"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
-var pdb *pgxpool.Pool
+var pdb *sql.DB
 
 func pdbConnect() {
 	var err error
-	if pdb, err = pgxpool.New(context.Background(), Config.postgresCS); err != nil {
+
+	dbFilePath := ""
+	if Config.dbDriver == "sqlite3" {
+		// A scheme is not used with go-sqlite3, but rather a file path.
+		dbFilePath = Config.sqliteFilePath
+	} else {
+		dbFilePath = Config.dbCS
+	}
+
+	if pdb, err = sql.Open(Config.dbDriver, dbFilePath); err != nil {
 		log.Fatal().Err(err).Msg("Startup failure")
 	}
 }
 
 func pdbMigrate() {
-	m, err := migrate.New("file://db/postgres", Config.postgresCS)
+	m, err := migrate.New("file://db/"+Config.dbDriver, Config.dbCS)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Startup failure")
 	}
@@ -53,11 +66,11 @@ func pdbMigrate() {
 	}
 }
 
-func pdbQueryRow(ctx context.Context, query string, args ...interface{}) (pgx.Row, error) {
+func pdbQueryRow(ctx context.Context, query string, args ...interface{}) (*sql.Row, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
-	c := make(chan pgx.Row, 1)
-	go func() { c <- pdb.QueryRow(ctx, query, args...) }()
+	c := make(chan *sql.Row, 1)
+	go func() { c <- pdb.QueryRow(query, args...) }()
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -66,13 +79,13 @@ func pdbQueryRow(ctx context.Context, query string, args ...interface{}) (pgx.Ro
 	}
 }
 
-func pdbQuery(ctx context.Context, query string, args ...interface{}) (pgx.Rows, error) {
+func pdbQuery(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
-	type queryRet struct { rows pgx.Rows; err error }
+	type queryRet struct { rows *sql.Rows; err error }
 	c := make(chan queryRet, 1)
 	go func() {
-		rows, err := pdb.Query(ctx, query, args...)
+		rows, err := pdb.Query(query, args...)
 		c <- queryRet{rows, err}
 	}()
 	select {
@@ -88,7 +101,7 @@ func pdbExec(ctx context.Context, query string, args ...interface{}) error {
 	defer cancel()
 	c := make(chan error, 1)
 	go func() {
-		_, err := pdb.Exec(ctx, query, args...)
+		_, err := pdb.Exec(query, args...)
 		c <- err
 	}()
 	select {

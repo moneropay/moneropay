@@ -31,7 +31,7 @@ func Health(ctx context.Context) (model.HealthResponse) {
 	d := model.HealthResponse{Status: http.StatusOK}
 	ctx, c1 := context.WithTimeout(context.Background(), 10 * time.Second)
 	defer c1()
-	if err := pdb.Ping(ctx); err == nil {
+	if err := db.PingContext(ctx); err == nil {
 		d.Services.PostgreSQL = true
 	}
 	ctx, c2 := context.WithTimeout(context.Background(), 10 * time.Second)

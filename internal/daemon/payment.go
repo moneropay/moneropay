@@ -21,9 +21,9 @@ package daemon
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/rs/zerolog/log"
 	"gitlab.com/moneropay/go-monero/walletrpc"
 
@@ -36,27 +36,27 @@ func Receive(ctx context.Context, xmr uint64, desc, callbackUrl string) (string,
 		return "", time.Time{}, err
 	}
 	t := time.Now()
-	var tx pgx.Tx
-	tx, err = pdb.Begin(ctx)
+	var tx *sql.Tx
+	tx, err = db.BeginTx(ctx, nil)
 	if err != nil {
 		return "", time.Time{}, err
 	}
-	if _, err = tx.Exec(ctx, "INSERT INTO subaddresses(address_index,address)VALUES($1,$2)",
+	if _, err = tx.ExecContext(ctx, "INSERT INTO subaddresses(address_index,address)VALUES($1,$2)",
 	    resp.AddressIndex, resp.Address); err != nil {
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return "", time.Time{}, err
 	}
 	h, err := wallet.GetHeight(ctx)
 	if err != nil {
 		return "", time.Time{}, err
 	}
-	if _, err = tx.Exec(ctx, "INSERT INTO receivers(subaddress_index,expected_amount,description," +
+	if _, err = tx.ExecContext(ctx, "INSERT INTO receivers(subaddress_index,expected_amount,description," +
 	    "callback_url,created_at,received_amount,creation_height)VALUES($1,$2,$3,$4,$5,0,$6)",
 	    resp.AddressIndex, xmr, desc, callbackUrl, t, h.Height); err != nil {
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return "", time.Time{}, err
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = tx.Commit(); err != nil {
 		return "", time.Time{}, err
 	}
 	log.Info().Uint64("amount", xmr).Str("description", desc).Str("callback_url",callbackUrl).
@@ -72,14 +72,11 @@ type Receiver struct {
 
 func getReceiver(ctx context.Context, address string) (Receiver, error) {
 	var r Receiver
-	row, err := pdbQueryRow(ctx,
+	row := db.QueryRowContext(ctx,
 	    "SELECT address_index,expected_amount,description,created_at " +
 	    "FROM subaddresses,receivers WHERE address_index=subaddress_index AND address=$1",
 	    address)
-	if err != nil {
-		return r, err
-	}
-	err = row.Scan(&r.Index, &r.Expected, &r.Description, &r.CreatedAt)
+	err := row.Scan(&r.Index, &r.Expected, &r.Description, &r.CreatedAt)
 	return r, err
 }
 

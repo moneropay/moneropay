@@ -27,8 +27,7 @@ func init() {
 	loadConfig()
 	logger()
 	walletConnect()
-	pdbMigrate()
-	pdbConnect()
+	dbConnect()
 	readLastCallbackHeight(context.Background())
 	daemonMigrate()
 }

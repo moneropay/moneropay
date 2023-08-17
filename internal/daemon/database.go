@@ -22,24 +22,34 @@ package daemon
 import (
 	"database/sql"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/rs/zerolog/log"
 	"github.com/golang-migrate/migrate/v4"
+	"github.com/rs/zerolog/log"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/database/sqlite3"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var db *sql.DB
 
-func pdbConnect() {
+func dbConnect() {
 	var err error
-	if db, err = sql.Open("pgx", Config.postgresCS); err != nil {
-		log.Fatal().Err(err).Msg("Startup failure")
+	if Config.postgresCS != "" {
+		dbMigrate("file://db/postgres", Config.postgresCS)
+		if db, err = sql.Open("pgx", Config.postgresCS); err != nil {
+			log.Fatal().Err(err).Msg("Startup failure")
+		}
+	} else {
+		dbMigrate("file://db/sqlite", Config.sqliteCS)
+		if db, err = sql.Open("sqlite3", Config.sqliteCS); err != nil {
+			log.Fatal().Err(err).Msg("Startup failure")
+		}
 	}
 }
 
-func pdbMigrate() {
-	m, err := migrate.New("file://db/postgres", Config.postgresCS)
+func dbMigrate(url, conn string) {
+	m, err := migrate.New(url, conn)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Startup failure")
 	}

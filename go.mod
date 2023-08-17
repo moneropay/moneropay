@@ -7,6 +7,7 @@ require (
 	github.com/go-chi/chi/v5 v5.0.10
 	github.com/golang-migrate/migrate/v4 v4.16.2
 	github.com/jackc/pgx/v5 v5.4.3
+	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/namsral/flag v1.7.4-pre
 	github.com/rs/zerolog v1.30.0
 	gitlab.com/moneropay/go-monero v1.1.0

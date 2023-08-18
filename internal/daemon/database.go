@@ -21,6 +21,7 @@ package daemon
 
 import (
 	"database/sql"
+	"net/url"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/rs/zerolog/log"
@@ -38,12 +39,12 @@ func dbConnect() {
 	if Config.postgresCS != "" {
 		dbMigrate("file://db/postgres", Config.postgresCS)
 		if db, err = sql.Open("pgx", Config.postgresCS); err != nil {
-			log.Fatal().Err(err).Msg("Startup failure")
+			log.Fatal().Err(err).Msg("Failed to open PostgreSQL database")
 		}
 	} else {
-		dbMigrate("file://db/sqlite", Config.sqliteCS)
+		dbMigrate("file://db/sqlite", sqliteMigrateParseDSN(Config.sqliteCS))
 		if db, err = sql.Open("sqlite3", Config.sqliteCS); err != nil {
-			log.Fatal().Err(err).Msg("Startup failure")
+			log.Fatal().Err(err).Msg("Failed to open SQLite3 database")
 		}
 	}
 }
@@ -51,12 +52,22 @@ func dbConnect() {
 func dbMigrate(url, conn string) {
 	m, err := migrate.New(url, conn)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Startup failure")
+		log.Fatal().Err(err).Msg("Failed to initialize new migrate instance")
 	}
 	if err := m.Up(); err != nil {
 		if err == migrate.ErrNoChange {
 			return
 		}
-		log.Fatal().Err(err).Msg("Startup failure")
+		log.Fatal().Err(err).Msg("Failed to apply migrations")
 	}
+}
+
+// go-migrate's sqlite3 library doesn't use standard DSN connection strings
+func sqliteMigrateParseDSN(conn string) string {
+	u, err := url.Parse(conn)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to parse sqlite3 connection string")
+	}
+	u.Scheme = "sqlite3"
+	return u.String()
 }

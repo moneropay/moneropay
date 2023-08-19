@@ -18,9 +18,12 @@ services:
 
   moneropay:
     image: registry.gitlab.com/moneropay/moneropay:v2
+    # volumes:
+    #  - ./data/sqlite:/app/sqlite
     environment:
       - RPC_ADDRESS=http://monero-wallet-rpc:28081/json_rpc
-      - POSTGRESQL=postgresql://${POSTGRES_USERNAME}:${POSTGRES_PASSWORD}@postgresql:5432/${POSTGRES_DATABASE}?sslmode=disable
+      - POSTGRESQL=postgresq://${POSTGRES_USERNAME}:${POSTGRES_PASSWORD}@postgresql:5432/${POSTGRES_DATABASE}?sslmode=disable
+      # - SQLITE=file:/app/sqlite/db.sqlite
     depends_on:
       - monero-wallet-rpc
       - postgresql

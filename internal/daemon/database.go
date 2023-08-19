@@ -42,7 +42,7 @@ func dbConnect() {
 			log.Fatal().Err(err).Msg("Failed to open PostgreSQL database")
 		}
 	} else {
-		dbMigrate("file://db/sqlite", sqliteMigrateParseDSN(Config.sqliteCS))
+		dbMigrate("file://db/sqlite3", sqliteMigrateParseDSN(Config.sqliteCS))
 		if db, err = sql.Open("sqlite3", Config.sqliteCS); err != nil {
 			log.Fatal().Err(err).Msg("Failed to open SQLite3 database")
 		}
@@ -68,6 +68,6 @@ func sqliteMigrateParseDSN(conn string) string {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to parse sqlite3 connection string")
 	}
-	u.Scheme = "sqlite3"
-	return u.String()
+	u.Scheme = ""
+	return "sqlite3://" + u.String()
 }

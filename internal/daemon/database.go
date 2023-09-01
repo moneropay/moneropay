@@ -37,19 +37,19 @@ var db *sql.DB
 func dbConnect() {
 	var err error
 	if Config.postgresCS != "" {
-		dbMigrate("file://db/postgres", Config.postgresCS)
+		DbMigrate("file://db/postgres", Config.postgresCS)
 		if db, err = sql.Open("pgx", Config.postgresCS); err != nil {
 			log.Fatal().Err(err).Msg("Failed to open PostgreSQL database")
 		}
 	} else {
-		dbMigrate("file://db/sqlite3", sqliteMigrateParseDSN(Config.sqliteCS))
+		DbMigrate("file://db/sqlite3", SqliteMigrateParseDSN(Config.sqliteCS))
 		if db, err = sql.Open("sqlite3", Config.sqliteCS); err != nil {
 			log.Fatal().Err(err).Msg("Failed to open SQLite3 database")
 		}
 	}
 }
 
-func dbMigrate(url, conn string) {
+func DbMigrate(url, conn string) {
 	m, err := migrate.New(url, conn)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to initialize new migrate instance")
@@ -63,7 +63,7 @@ func dbMigrate(url, conn string) {
 }
 
 // go-migrate's sqlite3 library doesn't use standard DSN connection strings
-func sqliteMigrateParseDSN(conn string) string {
+func SqliteMigrateParseDSN(conn string) string {
 	u, err := url.Parse(conn)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to parse sqlite3 connection string")

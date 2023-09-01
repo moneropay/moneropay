@@ -23,15 +23,12 @@ import "context"
 
 const Version = "2.2.2"
 
-func init() {
+func Run() {
 	loadConfig()
 	logger()
 	walletConnect()
 	dbConnect()
 	readLastCallbackHeight(context.Background())
 	daemonMigrate()
-}
-
-func Run() {
 	go callbackRunner()
 }

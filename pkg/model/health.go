@@ -21,6 +21,7 @@ type HealthResponse struct {
 	Status int `json:"status"`
 	Services struct {
 		WalletRPC bool `json:"walletrpc"`
-		PostgreSQL bool `json:"postgresql"`
+		PostgreSQL bool `json:"postgresql,omitempty"`
+		SQLite bool `json:"sqlite,omitempty"`
 	} `json:"services"`
 }

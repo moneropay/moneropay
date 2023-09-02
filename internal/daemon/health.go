@@ -32,7 +32,11 @@ func Health(ctx context.Context) (model.HealthResponse) {
 	ctx, c1 := context.WithTimeout(context.Background(), 10 * time.Second)
 	defer c1()
 	if err := db.PingContext(ctx); err == nil {
-		d.Services.PostgreSQL = true
+		if Config.sqliteCS != "" {
+			d.Services.SQLite = true
+		} else {
+			d.Services.PostgreSQL = true
+		}
 	}
 	ctx, c2 := context.WithTimeout(context.Background(), 10 * time.Second)
 	defer c2()
@@ -41,7 +45,7 @@ func Health(ctx context.Context) (model.HealthResponse) {
 		d.Services.WalletRPC = true
 	}
 	wMutex.Unlock()
-	if !d.Services.PostgreSQL || !d.Services.WalletRPC {
+	if !(d.Services.PostgreSQL || d.Services.SQLite) || !d.Services.WalletRPC {
 		d.Status = http.StatusServiceUnavailable
 	}
 	return d

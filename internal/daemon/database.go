@@ -36,16 +36,16 @@ var db *sql.DB
 
 func dbConnect() {
 	var err error
-	if Config.postgresCS != "" {
-		DbMigrate("file://db/postgres", Config.postgresCS)
-		if db, err = sql.Open("pgx", Config.postgresCS); err != nil {
-			log.Fatal().Err(err).Msg("Failed to open PostgreSQL database")
-		}
-	} else {
+	if Config.sqliteCS != "" {
 		DbMigrate("file://db/sqlite3", SqliteMigrateParseDSN(Config.sqliteCS))
 		if db, err = sql.Open("sqlite3", Config.sqliteCS); err != nil {
 			log.Fatal().Err(err).Msg("Failed to open SQLite3 database")
 		}
+		return
+	}
+	DbMigrate("file://db/postgres", Config.postgresCS)
+	if db, err = sql.Open("pgx", Config.postgresCS); err != nil {
+		log.Fatal().Err(err).Msg("Failed to open PostgreSQL database")
 	}
 }
 

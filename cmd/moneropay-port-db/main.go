@@ -45,6 +45,7 @@ func main() {
 	sourceCs, targetCs, timeout := parseOptions()
 	porter := newPorter(sourceCs, targetCs, timeout)
 
+	log.Println("Created tables. Now migrating rows.")
 	porter.migrateLastBlockHeightRow()
 	porter.migrateSubaddressesRows()
 	porter.migrateReceiversRows()
@@ -52,6 +53,7 @@ func main() {
 	if err := porter.tx.Commit(); err != nil {
 		log.Fatal("Failed to commit changes")
 	}
+	log.Println("Done.")
 }
 
 func newPorter(sourceCs, targetCs string, timeout time.Duration) *dbPorter {
@@ -61,9 +63,8 @@ func newPorter(sourceCs, targetCs string, timeout time.Duration) *dbPorter {
 	)
 
 	// Connect and run database migration files
-	d.source = connect(sourceCs)
-
-	d.target = connect(targetCs)
+	d.source = connect("source", sourceCs)
+	d.target = connect("target", targetCs)
 
 	// Start a transaction. This will revert all changes if something fails.
 	d.tx, err = d.target.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelSerializable})
@@ -89,18 +90,17 @@ func parseOptions() (sourceCs, targetCs string, timeout time.Duration) {
 	return
 }
 
-func connect(conn string) (db *sql.DB) {
+func connect(name, conn string) (db *sql.DB) {
 	u, err := url.Parse(conn)
 	if err != nil {
 		log.Fatal("Failed to parse database connection string: ", err)
 	}
-	log.Println("scheme: ", u.Scheme)
 	if u.Scheme == "postgres" || u.Scheme == "postgresql" {
 		daemon.DbMigrate("file://db/postgres", conn)
 		if db, err = sql.Open("pgx", conn); err != nil {
 			log.Fatal("Failed to open PostgreSQL database: ", err)
 		}
-		log.Println("Connected to postgresql")
+		log.Printf("Opened PostgreSQL %s.", name)
 		return
 	}
 
@@ -110,7 +110,7 @@ func connect(conn string) (db *sql.DB) {
 	if db, err = sql.Open("sqlite3", conn); err != nil {
 		log.Fatal("Failed to open SQLite3 database: ", err)
 	}
-	log.Println("Connected to sqlite3")
+	log.Printf("Opened SQLite3 %s.", name)
 	return
 }
 
@@ -138,6 +138,7 @@ func (d *dbPorter) migrateLastBlockHeightRow() {
 		log.Fatal("last_block_height update: ", err)
 
 	}
+	log.Println("last_block_height: migrated 1 row.")
 }
 
 func (d *dbPorter) migrateSubaddressesRows() {
@@ -154,6 +155,8 @@ func (d *dbPorter) migrateSubaddressesRows() {
 		addressIndex uint64
 		address      string
 	}
+
+	rowsMigrated := 0
 	for rows.Next() {
 		var s subaddress
 		if err := rows.Scan(&s.addressIndex, &s.address); err != nil {
@@ -175,7 +178,9 @@ func (d *dbPorter) migrateSubaddressesRows() {
 			}
 			log.Fatal("subaddresses insert: ", err)
 		}
+		rowsMigrated += 1
 	}
+	log.Printf("subaddresses: migrated %d row(s).", rowsMigrated)
 }
 
 func (d *dbPorter) migrateReceiversRows() {
@@ -188,7 +193,6 @@ func (d *dbPorter) migrateReceiversRows() {
 	if err != nil {
 		log.Fatal("receivers select: ", err)
 	}
-
 	defer rows.Close()
 
 	type receiver struct {
@@ -197,6 +201,7 @@ func (d *dbPorter) migrateReceiversRows() {
 		createdAt                                 time.Time
 	}
 
+	rowsMigrated := 0
 	for rows.Next() {
 		var r receiver
 		if err := rows.Scan(&r.index, &r.expected, &r.description,
@@ -224,5 +229,7 @@ func (d *dbPorter) migrateReceiversRows() {
 			}
 			log.Fatal("receivers insert: ", err)
 		}
+		rowsMigrated += 1
 	}
+	log.Printf("receivers: migrated %d row(s).", rowsMigrated)
 }

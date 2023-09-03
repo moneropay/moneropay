@@ -38,6 +38,7 @@ func migrateReceivedAmount() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to query payment requests to migrate")
 	}
+	defer rows.Close()
 	h, err := wallet.GetHeight(ctx)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to get wallet height")

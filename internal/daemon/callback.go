@@ -131,6 +131,8 @@ func fetchTransfers() {
 		log.Error().Err(err).Msg("Failed to get payment requests from database")
 		return
 	}
+	defer rows.Close()
+
 	// TODO: Implement caching here in a future release
 	rs := make(map[uint64]*recv)
 	for rows.Next() {

@@ -21,18 +21,14 @@ package daemon
 
 import "context"
 
-const Version = "2.2.2"
+const Version = "2.4.0"
 
-func init() {
+func Run() {
 	loadConfig()
 	logger()
 	walletConnect()
-	pdbMigrate()
-	pdbConnect()
+	dbConnect()
 	readLastCallbackHeight(context.Background())
 	daemonMigrate()
-}
-
-func Run() {
 	go callbackRunner()
 }

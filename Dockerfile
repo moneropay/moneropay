@@ -1,8 +1,11 @@
-FROM --platform=$BUILDPLATFORM golang:1.20-alpine3.17 as build
-WORKDIR /src
+FROM --platform=$BUILDPLATFORM techknowlogick/xgo:go-1.20.7 as build
+
+ADD . /go/src
+WORKDIR /go/src
 ARG TARGETOS TARGETARCH
-RUN --mount=target=. --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/go/pkg GOOS=$TARGETOS GOARCH=$TARGETARCH CGO_ENABLED=0 go build -o /out/moneropay -ldflags "-s -w"
+RUN --mount=target=. --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/go/pkg xgo -x --targets=$TARGETOS/$TARGETARCH -ldflags '-s -w -extldflags "-static"' -out moneropay cmd/moneropay
 COPY db /out/db
+RUN mv /build/moneropay-* /out/moneropay
 
 FROM scratch
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/

@@ -20,81 +20,54 @@
 package daemon
 
 import (
-	"context"
-	"time"
+	"database/sql"
+	"net/url"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/rs/zerolog/log"
 	"github.com/golang-migrate/migrate/v4"
+	"github.com/rs/zerolog/log"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/database/sqlite3"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	_ "github.com/mattn/go-sqlite3"
 )
 
-var pdb *pgxpool.Pool
+var db *sql.DB
 
-func pdbConnect() {
+func dbConnect() {
 	var err error
-	if pdb, err = pgxpool.New(context.Background(), Config.postgresCS); err != nil {
-		log.Fatal().Err(err).Msg("Startup failure")
+	if Config.sqliteCS != "" {
+		DbMigrate("file://db/sqlite3", SqliteMigrateParseDSN(Config.sqliteCS))
+		if db, err = sql.Open("sqlite3", Config.sqliteCS); err != nil {
+			log.Fatal().Err(err).Msg("Failed to open SQLite3 database")
+		}
+		return
+	}
+	DbMigrate("file://db/postgres", Config.postgresCS)
+	if db, err = sql.Open("pgx", Config.postgresCS); err != nil {
+		log.Fatal().Err(err).Msg("Failed to open PostgreSQL database")
 	}
 }
 
-func pdbMigrate() {
-	m, err := migrate.New("file://db/postgres", Config.postgresCS)
+func DbMigrate(url, conn string) {
+	m, err := migrate.New(url, conn)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Startup failure")
+		log.Fatal().Err(err).Msg("Failed to initialize new migrate instance")
 	}
 	if err := m.Up(); err != nil {
 		if err == migrate.ErrNoChange {
 			return
 		}
-		log.Fatal().Err(err).Msg("Startup failure")
+		log.Fatal().Err(err).Msg("Failed to apply migrations")
 	}
 }
 
-func pdbQueryRow(ctx context.Context, query string, args ...interface{}) (pgx.Row, error) {
-	ctx, cancel := context.WithTimeout(ctx, time.Minute)
-	defer cancel()
-	c := make(chan pgx.Row, 1)
-	go func() { c <- pdb.QueryRow(ctx, query, args...) }()
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case row := <-c:
-		return row, nil
+// go-migrate's sqlite3 library doesn't use standard DSN connection strings
+func SqliteMigrateParseDSN(conn string) string {
+	u, err := url.Parse(conn)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to parse sqlite3 connection string")
 	}
-}
-
-func pdbQuery(ctx context.Context, query string, args ...interface{}) (pgx.Rows, error) {
-	ctx, cancel := context.WithTimeout(ctx, time.Minute)
-	defer cancel()
-	type queryRet struct { rows pgx.Rows; err error }
-	c := make(chan queryRet, 1)
-	go func() {
-		rows, err := pdb.Query(ctx, query, args...)
-		c <- queryRet{rows, err}
-	}()
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case ret := <-c:
-		return ret.rows, ret.err
-	}
-}
-
-func pdbExec(ctx context.Context, query string, args ...interface{}) error {
-	ctx, cancel := context.WithTimeout(ctx, time.Minute)
-	defer cancel()
-	c := make(chan error, 1)
-	go func() {
-		_, err := pdb.Exec(ctx, query, args...)
-		c <- err
-	}()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case err := <-c:
-		return err
-	}
+	u.Scheme = ""
+	return "sqlite3://" + u.String()
 }

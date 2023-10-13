@@ -32,12 +32,13 @@ func daemonMigrate() {
 
 func migrateReceivedAmount() {
 	ctx := context.Background()
-	rows, err := pdbQuery(ctx,
+	rows, err := db.QueryContext(ctx,
 	    "SELECT subaddress_index,expected_amount,description,callback_url,created_at" +
 	    " FROM receivers WHERE creation_height IS NULL")
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to query payment requests to migrate")
 	}
+	defer rows.Close()
 	h, err := wallet.GetHeight(ctx)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to get wallet height")
@@ -94,7 +95,7 @@ func migrateReceivedAmount() {
 		}
 	}
 	for _, r := range rs {
-		if err := pdbExec(ctx,
+		if _, err := db.ExecContext(ctx,
 		    "UPDATE receivers SET received_amount=$1,creation_height=$2 WHERE subaddress_index=$3",
 		    r.received, r.creationHeight, r.index); err != nil {
 			log.Fatal().Err(err).Msg("Migration failure")

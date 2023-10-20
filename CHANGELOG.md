@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Dockerfile build procedure. [techknowlogick/xgo](https://github.com/techknowlogick/xgo) is now used to build the Docker images due to CGO dependency ([mattn/go-sqlite3](http://mattn.github.io/go-sqlite3/)).
+- Bumped monero-wallet-rpc version to v0.18.3.1 in docker-compose.yaml.
 - Switched from [jackc/pgx](https://github.com/jackc/pgx) driver to standard library's [database/sql](https://pkg.go.dev/database/sql).
 
 ### Fixed

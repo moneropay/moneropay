@@ -57,6 +57,7 @@ func TransferPostHandler(w http.ResponseWriter, r *http.Request) {
 	d := model.TransferPostResponse{
 		Amount: amount,
 		Fee: fee,
+		TxHash: resp.TxHashList[0],
 		TxHashList: resp.TxHashList,
 		Destinations: j.Destinations,
 	}

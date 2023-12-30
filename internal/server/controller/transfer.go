@@ -37,20 +37,28 @@ func TransferPostHandler(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, nil, err.Error())
 		return
 	}
-	resp, err := daemon.Transfer(r.Context(), &walletrpc.TransferRequest{
+	resp, err := daemon.TransferSplit(r.Context(), &walletrpc.TransferSplitRequest{
 		Destinations: j.Destinations,
-		Priority: walletrpc.Priority(daemon.Config.TransferPriority),
-		Mixin: daemon.Config.TransferMixin,
+		// Wallet RPC docs on ring_size: "Unless dealing with pre rct outputs, this field is ignored on mainnet"
+		RingSize: daemon.Config.TransferMixin + 1,
 		UnlockTime: daemon.Config.TransferUnlockTime,
+		Priority: walletrpc.Priority(daemon.Config.TransferPriority),
 	})
 	if err != nil {
 		writeComplexError(w, err)
 		return
 	}
+	var amount uint64 = 0
+	var fee uint64 = 0
+	for i, amt := range resp.AmountList {
+		amount += uint64(amt)
+		fee += uint64(resp.FeeList[i])
+	}
 	d := model.TransferPostResponse{
-		Amount: resp.Amount,
-		Fee: resp.Fee,
-		TxHash: resp.TxHash,
+		Amount: amount,
+		Fee: fee,
+		TxHash: resp.TxHashList[0],
+		TxHashList: resp.TxHashList,
 		Destinations: j.Destinations,
 	}
 	json.NewEncoder(w).Encode(d)

@@ -22,7 +22,7 @@ services:
     #  - ./data/sqlite:/app/sqlite
     environment:
       - RPC_ADDRESS=http://monero-wallet-rpc:28081/json_rpc
-      - POSTGRESQL=postgresq://${POSTGRES_USERNAME}:${POSTGRES_PASSWORD}@postgresql:5432/${POSTGRES_DATABASE}?sslmode=disable
+      - POSTGRESQL=postgresql://${POSTGRES_USERNAME}:${POSTGRES_PASSWORD}@postgresql:5432/${POSTGRES_DATABASE}?sslmode=disable
       # - SQLITE=file:/app/sqlite/db.sqlite
     depends_on:
       - monero-wallet-rpc

@@ -30,7 +30,7 @@ type TransferPostRequest struct {
 type TransferPostResponse struct {
 	Amount uint64 `json:"amount"`
 	Fee uint64 `json:"fee"`
-	TxHash string `json:"tx_hash"`
+	TxHashList []string `json:"tx_hash_list"`
 	Destinations []walletrpc.Destination `json:"destinations"`
 }
 

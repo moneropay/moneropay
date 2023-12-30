@@ -58,9 +58,9 @@ func Balance(ctx context.Context, indices []uint64) (*walletrpc.GetBalanceRespon
 	return resp, err
 }
 
-func Transfer(ctx context.Context, r *walletrpc.TransferRequest) (*walletrpc.TransferResponse, error) {
+func TransferSplit(ctx context.Context, r *walletrpc.TransferSplitRequest) (*walletrpc.TransferSplitResponse, error) {
 	wMutex.Lock()
-	resp, err := wallet.Transfer(ctx, r)
+	resp, err := wallet.TransferSplit(ctx, r)
 	wMutex.Unlock()
 	return resp, err
 }

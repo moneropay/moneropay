@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2024-01-02
+### Added
+- Added `tx_hash_list` field in `POST /transfer` response. If there are multiple TX hashes, then `tx_hash` field will contain the first hash in the list. `tx_hash` field will be removed the next major release.
+
+### Changed
+- `POST /transfer` now uses the wallet RPC call `transfer_split` instead of `transfer`.
+
 ## [2.4.0] - 2023-10-20
 ### Added
 - SQLite3 support (special thanks to [recanman](http://recanman7nly4wwc5f2t2h55jnxsr7wo664o3lsydngwetvrguz4esid.onion/) for testing and implementing migration files).

@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - `POST /transfer` now uses the wallet RPC call `transfer_split` instead of `transfer`.
 
+### Fixed
+- Typo `postgresq` in docker-compose.yaml.
+
 ## [2.4.0] - 2023-10-20
 ### Added
 - SQLite3 support (special thanks to [recanman](http://recanman7nly4wwc5f2t2h55jnxsr7wo664o3lsydngwetvrguz4esid.onion/) for testing and implementing migration files).

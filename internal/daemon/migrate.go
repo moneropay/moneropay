@@ -28,6 +28,7 @@ import (
 
 func daemonMigrate() {
 	migrateReceivedAmount()
+	daemonWarn()
 }
 
 func migrateReceivedAmount() {
@@ -110,4 +111,8 @@ func migrateReceivedAmount() {
 		log.Info().Uint64("height", lastCallbackHeight).Msg("Saved last callback height")
 	}
 	log.Info().Msg("Migration ended")
+}
+
+func daemonWarn() {
+	log.Warn().Msg("Deprecated: TxHash (tx_hash) field will be removed the next major release (3.0.0). Please use TxHashList (tx_hash_list) instead. See here for more details: https://gitlab.com/moneropay/moneropay/-/merge_requests/13")
 }

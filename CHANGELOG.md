@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.1] - 2024-09-30
+### Changed
+- Added a retry mechanism for the intitial connection to monero-wallet-rpc. Improved the logging that happens in this stage.
+- Updated dependencies and monero-wallet-rpc version in docker-compose.yaml. Also removed the logging arguments to monero-wallet-rpc in docker-compose.yaml
+
 ## [2.5.0] - 2024-01-02
 ### Added
 - Added `tx_hash_list` field in `POST /transfer` response. If there are multiple TX hashes, then `tx_hash` field will contain the first hash in the list. `tx_hash` field will be removed the next major release.

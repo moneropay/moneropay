@@ -23,6 +23,7 @@ import (
 	"context"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gabstv/httpdigest"
 	"github.com/rs/zerolog/log"
@@ -34,11 +35,23 @@ var wMutex sync.Mutex
 var WalletPrimaryAddress string
 
 func readWalletPrimaryAddress() {
-	resp, err := wallet.GetAddress(context.Background(), &walletrpc.GetAddressRequest{AddressIndex: []uint64{0}})
-	if err != nil {
-		log.Fatal().Err(err).Msg("Startup failure")
+	durations := [5]time.Duration{10 * time.Second, 30 * time.Second, time.Minute, 5 * time.Minute, 10 * time.Minute,}
+	for attempt := 0; attempt < 5; attempt++ {
+		resp, err := wallet.GetAddress(context.Background(), &walletrpc.GetAddressRequest{AddressIndex: []uint64{0}})
+		if err == nil {
+			WalletPrimaryAddress = resp.Address
+			return
+		}
+		if isWallet, werr := walletrpc.GetWalletError(err); isWallet {
+			log.Fatal().Err(werr).Msg("Received erroneous response from monero-wallet-rpc at startup.")
+		}
+		if attempt == 4 {
+			log.Fatal().Err(err).Msg("Maximum retries for connecting to monero-wallet-rpc has been reached. Exiting.")
+		}
+		log.Err(err).Int("attempts", attempt+1).Str("retry_in", durations[attempt].String()).
+			Msg("monero-wallet-rpc is either not running or hasn't finished syncing yet. Trying again later.")
+		time.Sleep(durations[attempt])
 	}
-	WalletPrimaryAddress = resp.Address
 }
 
 func walletConnect() {

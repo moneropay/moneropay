@@ -262,7 +262,7 @@ func checkMempool() {
 	if Config.sqliteCS != "" {
 		// Less efficient than the PostgreSQL query with ANY but SQLite is not meant for production use
 		rows, err = db.QueryContext(ctx, "SELECT subaddress_index,expected_amount,received_amount,description,"+
-			"callback_url,created_at,creation_height FROM receivers WHERE subaddress_index")
+			"callback_url,created_at,creation_height FROM receivers")
 	} else {
 		rows, err = db.QueryContext(ctx, "SELECT subaddress_index,expected_amount,received_amount,description,"+
 			"callback_url,created_at,creation_height FROM receivers WHERE subaddress_index = ANY($1)", addressIndices)

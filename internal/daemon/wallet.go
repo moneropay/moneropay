@@ -35,7 +35,7 @@ var wMutex sync.Mutex
 var WalletPrimaryAddress string
 
 func readWalletPrimaryAddress() {
-	durations := [5]time.Duration{10 * time.Second, 30 * time.Second, time.Minute, 5 * time.Minute, 10 * time.Minute,}
+	durations := [5]time.Duration{10 * time.Second, 30 * time.Second, time.Minute, 5 * time.Minute, 10 * time.Minute}
 	for attempt := 0; attempt < 5; attempt++ {
 		resp, err := wallet.GetAddress(context.Background(), &walletrpc.GetAddressRequest{AddressIndex: []uint64{0}})
 		if err == nil {
@@ -99,6 +99,13 @@ func createAddress(ctx context.Context, r *walletrpc.CreateAddressRequest) (*wal
 	return resp, err
 }
 
+func getHeight(ctx context.Context) (*walletrpc.GetHeightResponse, error) {
+	wMutex.Lock()
+	resp, err := wallet.GetHeight(ctx)
+	wMutex.Unlock()
+	return resp, err
+}
+
 var cryptonoteDefaultTxSpendableAge uint64 = 10
 
 func getTransferLockStatus(t walletrpc.Transfer) (bool, uint64) {
@@ -108,10 +115,10 @@ func getTransferLockStatus(t walletrpc.Transfer) (bool, uint64) {
 	if t.Confirmations >= cryptonoteDefaultTxSpendableAge {
 		// If the transfer is unlocked compare the block which it unlocked at
 		// (t.Height + t.UnlockTime) to the block that caused the last callback
-		if t.UnlockTime == 0 || t.UnlockTime - t.Height <= cryptonoteDefaultTxSpendableAge {
+		if t.UnlockTime == 0 || t.UnlockTime-t.Height <= cryptonoteDefaultTxSpendableAge {
 			eventHeight += 10
 			locked = false
-		} else if t.UnlockTime - t.Height <= t.Confirmations {
+		} else if t.UnlockTime-t.Height <= t.Confirmations {
 			eventHeight = t.UnlockTime
 			locked = false
 		}

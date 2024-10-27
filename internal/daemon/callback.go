@@ -187,11 +187,13 @@ func checkTransfers() {
 					log.Error().Err(err).Uint64("address_index", t.SubaddrIndex.Minor).
 						Uint64("amount", t.Amount).Str("tx_id", t.Txid).
 						Uint64("event_height", eventHeight).Bool("locked", locked).
+						Bool("pool", false).Uint64("confirmations", t.Confirmations).
 						Msg("Failed callback")
 				} else {
 					log.Info().Uint64("address_index", t.SubaddrIndex.Minor).
 						Uint64("amount", t.Amount).Str("tx_id", t.Txid).
 						Uint64("event_height", eventHeight).Bool("locked", locked).
+						Bool("pool", false).Uint64("confirmations", t.Confirmations).
 						Msg("Sent callback")
 				}
 			}
@@ -281,11 +283,13 @@ func checkMempool() {
 					log.Error().Err(err).Uint64("address_index", t.SubaddrIndex.Minor).
 						Uint64("amount", t.Amount).Str("tx_id", t.Txid).
 						Bool("locked", true).Bool("pool", true).
+						Uint64("confirmations", t.Confirmations).
 						Msg("Failed callback")
 				} else {
 					log.Info().Uint64("address_index", t.SubaddrIndex.Minor).
 						Uint64("amount", t.Amount).Str("tx_id", t.Txid).
 						Bool("locked", false).Bool("pool", true).
+						Uint64("confirmations", t.Confirmations).
 						Msg("Sent callback")
 				}
 			}

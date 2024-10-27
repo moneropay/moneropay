@@ -347,6 +347,6 @@ func callbackRunner() {
 				lastSeenHeight = heightResp.Height
 			}
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(Config.pollFreq)
 	}
 }

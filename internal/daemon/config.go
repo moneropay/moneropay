@@ -19,7 +19,11 @@
 
 package daemon
 
-import "github.com/namsral/flag"
+import (
+	"time"
+
+	"github.com/namsral/flag"
+)
 
 type config struct {
 	BindAddr           string
@@ -33,6 +37,7 @@ type config struct {
 	sqliteCS           string
 	logFormat          string
 	zeroConf           bool
+	pollFreq           time.Duration
 }
 
 var Config config
@@ -49,6 +54,7 @@ func loadConfig() {
 	flag.StringVar(&Config.sqliteCS, "sqlite", "", "SQLite3 connection string")
 	flag.StringVar(&Config.logFormat, "log-format", "pretty", "Log format (pretty or json)")
 	flag.BoolVar(&Config.zeroConf, "zero-conf", false, "Enable 0-conf mode. Sends 3 callbacks (0-conf, 1-conf, 10-conf).")
+	flag.DurationVar(&Config.pollFreq, "poll-frequency", 5*time.Second, "Interval for checking new incoming and pool payments.")
 	flag.String(flag.DefaultConfigFlagname, "", "Path to configuration file")
 	flag.Parse()
 }

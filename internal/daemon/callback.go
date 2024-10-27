@@ -259,8 +259,14 @@ func checkMempool() {
 		addressIndices = append(addressIndices, p.SubaddrIndex.Minor)
 	}
 
-	rows, err = db.QueryContext(ctx, "SELECT subaddress_index,expected_amount,received_amount,description,"+
-		"callback_url,created_at,creation_height FROM receivers WHERE subaddress_index = ANY($1)", addressIndices)
+	if Config.sqliteCS != "" {
+		// Less efficient than the PostgreSQL query with ANY but SQLite is not meant for production use
+		rows, err = db.QueryContext(ctx, "SELECT subaddress_index,expected_amount,received_amount,description,"+
+			"callback_url,created_at,creation_height FROM receivers WHERE subaddress_index")
+	} else {
+		rows, err = db.QueryContext(ctx, "SELECT subaddress_index,expected_amount,received_amount,description,"+
+			"callback_url,created_at,creation_height FROM receivers WHERE subaddress_index = ANY($1)", addressIndices)
+	}
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get payment requests from database")
 		return
@@ -313,8 +319,16 @@ func checkMempool() {
 		}
 	}
 
-	if _, err := db.ExecContext(ctx, "DELETE FROM mempool_seen WHERE txid = ANY($1)", toDelete); err != nil {
-		log.Err(err).Msg("Failed to delete old mempool_seen cache entries")
+	if Config.sqliteCS != "" {
+		for _, d := range toDelete {
+			if _, err := db.ExecContext(ctx, "DELETE FROM mempool_seen WHERE txid=$1", d); err != nil {
+				log.Err(err).Str("txid", d).Msg("Failed to delete old mempool_seen cache entry")
+			}
+		}
+	} else {
+		if _, err := db.ExecContext(ctx, "DELETE FROM mempool_seen WHERE txid = ANY($1)", toDelete); err != nil {
+			log.Err(err).Msg("Failed to delete old mempool_seen cache entries")
+		}
 	}
 }
 

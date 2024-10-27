@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.6.0] - 2024-10-27
 ### Added
 - Added optional 0-conf support. When enabled it causes 3 callbacks per tx to be sent: 0-conf, 1-conf and unlock.
+- Added configuration option for setting the interval of incoming payment checks. By default it is 5 seconds (`5s`).
 
 ### Fixed
 - Shortened the sleep and changed the workflow of the callback thread. Callbacks should be more timely in theory.

@@ -55,17 +55,17 @@ func initRouter() *chi.Mux {
 func Run() {
 	h2s := &http2.Server{}
 	srv := &http.Server{
-		Addr: daemon.Config.BindAddr,
+		Addr:         daemon.Config.BindAddr,
 		WriteTimeout: 30 * time.Second,
-		ReadTimeout: 30 * time.Second,
-		Handler: h2c.NewHandler(initRouter(), h2s),
+		ReadTimeout:  30 * time.Second,
+		Handler:      h2c.NewHandler(initRouter(), h2s),
 	}
 	serverCtx, serverStopCtx := context.WithCancel(context.Background())
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	go func() {
 		<-sig
-		shutdownCtx, _ := context.WithTimeout(serverCtx, 30 * time.Second)
+		shutdownCtx, _ := context.WithTimeout(serverCtx, 30*time.Second)
 		go func() {
 			<-shutdownCtx.Done()
 			if shutdownCtx.Err() == context.DeadlineExceeded {

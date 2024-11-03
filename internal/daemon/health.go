@@ -27,9 +27,9 @@ import (
 	"gitlab.com/moneropay/moneropay/v2/pkg/model"
 )
 
-func Health(ctx context.Context) (model.HealthResponse) {
+func Health(ctx context.Context) model.HealthResponse {
 	d := model.HealthResponse{Status: http.StatusOK}
-	ctx, c1 := context.WithTimeout(context.Background(), 10 * time.Second)
+	ctx, c1 := context.WithTimeout(context.Background(), 10*time.Second)
 	defer c1()
 	if err := db.PingContext(ctx); err == nil {
 		if Config.sqliteCS != "" {
@@ -38,7 +38,7 @@ func Health(ctx context.Context) (model.HealthResponse) {
 			d.Services.PostgreSQL = true
 		}
 	}
-	ctx, c2 := context.WithTimeout(context.Background(), 10 * time.Second)
+	ctx, c2 := context.WithTimeout(context.Background(), 10*time.Second)
 	defer c2()
 	wMutex.Lock()
 	if _, err := wallet.GetHeight(ctx); err == nil {

@@ -83,7 +83,7 @@ func parseOptions() (sourceCs, targetCs string, timeout time.Duration) {
 	flag.Parse()
 
 	if sourceCs == "" || targetCs == "" {
-		log.Println("-from and -to cannot be empty.\n")
+		log.Println("-from and -to cannot be empty.")
 		flag.PrintDefaults()
 		os.Exit(1)
 	}

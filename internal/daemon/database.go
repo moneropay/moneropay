@@ -24,12 +24,12 @@ import (
 	"net/url"
 
 	"github.com/golang-migrate/migrate/v4"
-	"github.com/rs/zerolog/log"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/database/sqlite3"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/rs/zerolog/log"
 )
 
 var db *sql.DB

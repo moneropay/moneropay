@@ -42,10 +42,10 @@ func ReceivePostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	d := model.ReceivePostResponse{
-		Address: a,
-		Amount: j.Amount,
+		Address:     a,
+		Amount:      j.Amount,
 		Description: j.Description,
-		CreatedAt: t,
+		CreatedAt:   t,
 	}
 	json.NewEncoder(w).Encode(d)
 }
@@ -69,7 +69,7 @@ func ReceiveGetHandler(w http.ResponseWriter, r *http.Request) {
 			max = n
 			if max < min {
 				writeError(w, http.StatusBadRequest, nil,
-				    "Maximum block height cannot be lower than minimum")
+					"Maximum block height cannot be lower than minimum")
 				return
 			}
 		}

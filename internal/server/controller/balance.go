@@ -34,7 +34,7 @@ func BalanceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	b := model.BalanceResponse{
-		Total: resp.Balance,
+		Total:    resp.Balance,
 		Unlocked: resp.UnlockedBalance,
 	}
 	json.NewEncoder(w).Encode(b)

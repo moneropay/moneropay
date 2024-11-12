@@ -21,12 +21,14 @@ package daemon
 
 import "context"
 
-const Version = "2.6.0"
+const Version = "2.7.0"
 
 func Run() {
 	loadConfig()
 	logger()
 	walletConnect()
+	walletCreateAndOpen()
+	walletGatherInfo()
 	dbConnect()
 	readLastCallbackHeight(context.Background())
 	daemonMigrate()

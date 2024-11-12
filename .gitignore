@@ -1,5 +1,7 @@
 /moneropay
 /data/
+/data-dev-postgresql/
+/data-dev-sqlite/
 /.env
 /docker-compose.override.yaml
 /start.sh

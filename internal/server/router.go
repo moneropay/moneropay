@@ -47,6 +47,7 @@ func initRouter() *chi.Mux {
 	r.Get("/balance", controller.BalanceHandler)
 	r.Post("/receive", controller.ReceivePostHandler)
 	r.Get("/receive/{address}", controller.ReceiveGetHandler)
+	r.Delete("/receive/{address}", controller.ReceiveDeleteHandler)
 	r.Post("/transfer", controller.TransferPostHandler)
 	r.Get("/transfer/{tx_hash}", controller.TransferGetHandler)
 	return r

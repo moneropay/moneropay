@@ -1,0 +1,19 @@
+services:
+  monero-wallet-rpc:
+    image: ghcr.io/sethforprivacy/simple-monero-wallet-rpc:v0.18.3.4
+    command: --wallet-file wallet --password-file wallet.passwd --disable-rpc-login --rpc-bind-port=28081 --daemon-host=${MONERO_DAEMON_RPC_HOSTNAME} --daemon-port=${MONERO_DAEMON_RPC_PORT}
+    volumes:
+      - ./data-dev-sqlite/wallet:/home/monero/wallet
+    restart: unless-stopped
+
+  moneropay:
+    build: .
+    volumes:
+      - ./data-dev-sqlite/sqlite:/app/sqlite
+    environment:
+      - RPC_ADDRESS=http://monero-wallet-rpc:28081/json_rpc
+      - ZERO_CONF=true
+      - SQLITE=file:/app/sqlite/db.sqlite
+    depends_on:
+      - monero-wallet-rpc
+    restart: unless-stopped

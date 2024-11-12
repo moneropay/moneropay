@@ -34,26 +34,6 @@ var wallet *walletrpc.Client
 var wMutex sync.Mutex
 var WalletPrimaryAddress string
 
-func readWalletPrimaryAddress() {
-	durations := [5]time.Duration{10 * time.Second, 30 * time.Second, time.Minute, 5 * time.Minute, 10 * time.Minute}
-	for attempt := 0; attempt < 5; attempt++ {
-		resp, err := wallet.GetAddress(context.Background(), &walletrpc.GetAddressRequest{AddressIndex: []uint64{0}})
-		if err == nil {
-			WalletPrimaryAddress = resp.Address
-			return
-		}
-		if isWallet, werr := walletrpc.GetWalletError(err); isWallet {
-			log.Fatal().Err(werr).Msg("Received erroneous response from monero-wallet-rpc at startup.")
-		}
-		if attempt == 4 {
-			log.Fatal().Err(err).Msg("Maximum retries for connecting to monero-wallet-rpc has been reached. Exiting.")
-		}
-		log.Err(err).Int("attempts", attempt+1).Str("retry_in", durations[attempt].String()).
-			Msg("monero-wallet-rpc is either not running or hasn't finished syncing yet. Trying again later.")
-		time.Sleep(durations[attempt])
-	}
-}
-
 func walletConnect() {
 	wallet = walletrpc.New(walletrpc.Config{
 		Address: Config.rpcAddr,
@@ -61,7 +41,69 @@ func walletConnect() {
 			Transport: httpdigest.New(Config.rpcUser, Config.rpcPass),
 		},
 	})
-	readWalletPrimaryAddress()
+}
+
+func isWalletOpen() bool {
+	ctx, c := context.WithTimeout(context.Background(), 10*time.Second)
+	defer c()
+	if err := wallet.Store(ctx); err != nil {
+		if isWallet, werr := walletrpc.GetWalletError(err); isWallet {
+			if werr.Code == walletrpc.ErrNotOpen {
+				return false
+			}
+			err = werr
+		}
+		log.Fatal().Err(err).Msg("Received erroneous response from monero-wallet-rpc at startup.")
+	}
+	log.Info().Msg("Wallet was already openned by wallet-rpc.")
+	return true
+}
+
+func createDefaultWallet() {
+	ctx, c := context.WithTimeout(context.Background(), 10*time.Second)
+	defer c()
+	if err := wallet.CreateWallet(ctx, &walletrpc.CreateWalletRequest{
+		Filename: "wallet", Language: "English",
+	}); err != nil {
+		if isWallet, werr := walletrpc.GetWalletError(err); isWallet {
+			if werr.Code != -21 {
+				log.Fatal().Err(werr).Msg("Received erroneous response from monero-wallet-rpc at startup.")
+			}
+		} else {
+			log.Fatal().Err(err).Msg("Received erroneous response from monero-wallet-rpc at startup.")
+		}
+	}
+}
+
+func openDefaultWallet() {
+	ctx, c := context.WithTimeout(context.Background(), 10*time.Second)
+	defer c()
+	if err := wallet.OpenWallet(ctx, &walletrpc.OpenWalletRequest{Filename: "wallet"}); err != nil {
+		if isWallet, werr := walletrpc.GetWalletError(err); isWallet {
+			err = werr
+		}
+		log.Fatal().Err(err).Msg("Received erroneous response from monero-wallet-rpc at startup.")
+	}
+}
+
+func walletCreateAndOpen() {
+	if !isWalletOpen() {
+		createDefaultWallet()
+		openDefaultWallet()
+	}
+}
+
+func walletGatherInfo() {
+	ctx, c := context.WithTimeout(context.Background(), 10*time.Second)
+	defer c()
+	resp, err := wallet.GetAddress(ctx, &walletrpc.GetAddressRequest{AddressIndex: []uint64{0}})
+	if err != nil {
+		if isWallet, werr := walletrpc.GetWalletError(err); isWallet {
+			err = werr
+		}
+		log.Fatal().Err(err).Msg("Failed to read primary address.")
+	}
+	WalletPrimaryAddress = resp.Address
 }
 
 func Balance(ctx context.Context, indices []uint64) (*walletrpc.GetBalanceResponse, error) {

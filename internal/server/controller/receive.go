@@ -81,3 +81,12 @@ func ReceiveGetHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	json.NewEncoder(w).Encode(d)
 }
+
+func ReceiveDeleteHandler(w http.ResponseWriter, r *http.Request) {
+	a := chi.URLParam(r, "address")
+	err := daemon.DeletePaymentRequest(r.Context(), a)
+	if err != nil {
+		writeComplexError(w, err)
+		return
+	}
+}

@@ -1,0 +1,28 @@
+services:
+  monero-wallet-rpc:
+    image: ghcr.io/sethforprivacy/simple-monero-wallet-rpc:v0.18.3.4
+    command: --wallet-dir wallet --disable-rpc-login --rpc-bind-port=28081 --daemon-host=${MONERO_DAEMON_RPC_HOSTNAME} --daemon-port=${MONERO_DAEMON_RPC_PORT}
+    volumes:
+      - ./data-dev-postgresql/wallet:/home/monero/wallet
+    restart: unless-stopped
+
+  postgresql:
+    image: postgres:17-alpine
+    volumes:
+      - ./data-dev-postgresql/postgresql:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=${POSTGRES_USERNAME}
+      - POSTGRES_PASSWORD
+      - POSTGRES_DB=${POSTGRES_DATABASE}
+    restart: unless-stopped
+
+  moneropay:
+    build: .
+    environment:
+      - RPC_ADDRESS=http://monero-wallet-rpc:28081/json_rpc
+      - POSTGRESQL=postgresql://${POSTGRES_USERNAME}:${POSTGRES_PASSWORD}@postgresql:5432/${POSTGRES_DATABASE}?sslmode=disable
+      - ZERO_CONF=true
+    depends_on:
+      - monero-wallet-rpc
+      - postgresql
+    restart: unless-stopped

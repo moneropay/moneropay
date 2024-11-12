@@ -22,6 +22,7 @@ package daemon
 import (
 	"context"
 	"net/http"
+	"sync"
 	"time"
 
 	"gitlab.com/moneropay/moneropay/v2/pkg/model"
@@ -29,22 +30,32 @@ import (
 
 func Health(ctx context.Context) model.HealthResponse {
 	d := model.HealthResponse{Status: http.StatusOK}
-	ctx, c1 := context.WithTimeout(context.Background(), 10*time.Second)
-	defer c1()
-	if err := db.PingContext(ctx); err == nil {
+	var wg sync.WaitGroup
+	ctxt, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := db.PingContext(ctxt); err != nil {
+			return
+		}
 		if Config.sqliteCS != "" {
 			d.Services.SQLite = true
 		} else {
 			d.Services.PostgreSQL = true
 		}
-	}
-	ctx, c2 := context.WithTimeout(context.Background(), 10*time.Second)
-	defer c2()
-	wMutex.Lock()
-	if _, err := wallet.GetHeight(ctx); err == nil {
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		wMutex.Lock()
+		defer wMutex.Unlock()
+		if _, err := wallet.GetHeight(ctxt); err != nil {
+			return
+		}
 		d.Services.WalletRPC = true
-	}
-	wMutex.Unlock()
+	}()
+	wg.Wait()
 	if !(d.Services.PostgreSQL || d.Services.SQLite) || !d.Services.WalletRPC {
 		d.Status = http.StatusServiceUnavailable
 	}

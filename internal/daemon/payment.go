@@ -135,3 +135,8 @@ func GetPaymentRequest(ctx context.Context, address string, min, max uint64) (mo
 	d.Complete = d.Amount.Covered.Unlocked >= d.Amount.Expected
 	return d, nil
 }
+
+func DeletePaymentRequest(ctx context.Context, address string) error {
+	_, err := db.ExecContext(ctx, "DELETE FROM subaddresses WHERE address=$1", address)
+	return err
+}

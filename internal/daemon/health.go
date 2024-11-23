@@ -1,7 +1,7 @@
 /*
  * MoneroPay is a Monero payment processor.
- * Copyright (C) 2022 Laurynas Četyrkinas <stnby@kernal.eu>
  * Copyright (C) 2022 İrem Kuyucu <siren@kernal.eu>
+ * Copyright (C) 2024 Laurynas Četyrkinas <gpg@gpg.li>
  *
  * MoneroPay is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@ import (
 	"sync"
 	"time"
 
+	"gitlab.com/moneropay/go-monero/walletrpc"
 	"gitlab.com/moneropay/moneropay/v2/pkg/model"
 )
 
@@ -50,7 +51,7 @@ func Health(ctx context.Context) model.HealthResponse {
 		defer wg.Done()
 		wMutex.Lock()
 		defer wMutex.Unlock()
-		if _, err := wallet.GetHeight(ctxt); err != nil {
+		if _, err := wallet.Refresh(ctxt, &walletrpc.RefreshRequest{}); err != nil {
 			return
 		}
 		d.Services.WalletRPC = true

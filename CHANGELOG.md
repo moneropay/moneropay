@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.0] - 2024-11-23
+### Added
+- New `DELETE /receive/{address}` endpoint.
+- New wallet auto-creation feature. If no wallet file is provided on `monero-wallet-rpc` side. We will attempt to create a wallet via RPC calls.
+
+### Fixed
+- `moneropay-port-db` tool was misisng `mempool_seen` table migration.
+- `UnlockTime` argument was removed from `TransferSplit` function, because non 0 values got deprecated on Monero side. And our default was set to 10.
+
+### Changed
+- Docker Compose files to adapt the new wallet auto-creation feature.
+- Docker Compose files to enable 0-conf.
+- Health check now uses `refresh` RPC call instead of `get_height`.
+
+### Removed
+- `transfer-mixin` CLI argument that was used in `TransferSplit` function as `RingSize: daemon.Config.TransferMixin + 1` argument.
+- `transfer-unlock-time` CLI argument as it was deprecated on Monero side.
+
 ## [2.6.0] - 2024-10-27
 ### Added
 - Added optional 0-conf support. When enabled it causes 3 callbacks per tx to be sent: 0-conf, 1-conf and unlock.

@@ -1,7 +1,7 @@
 /*
  * MoneroPay is a Monero payment processor.
- * Copyright (C) 2022 Laurynas Četyrkinas <stnby@kernal.eu>
  * Copyright (C) 2022 İrem Kuyucu <siren@kernal.eu>
+ * Copyright (C) 2024 Laurynas Četyrkinas <gpg@gpg.li>
  *
  * MoneroPay is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

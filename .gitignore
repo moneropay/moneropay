@@ -1,4 +1,5 @@
 /moneropay
+/moneropay-port-db
 /data/
 /data-dev-postgresql/
 /data-dev-sqlite/

@@ -6,8 +6,8 @@ services:
     command: "chown -R 1000: /mnt/wallet"
 
   monero-wallet-rpc:
-    image: ghcr.io/sethforprivacy/simple-monero-wallet-rpc:v0.18.3.4
-    command: --wallet-file wallet --password-file wallet.passwd --disable-rpc-login --rpc-bind-port=28081 --daemon-host=${MONERO_DAEMON_RPC_HOSTNAME} --daemon-port=${MONERO_DAEMON_RPC_PORT}
+    image: ghcr.io/sethforprivacy/simple-monero-wallet-rpc
+    command: --wallet-dir wallet --disable-rpc-login --rpc-bind-port=28081 --daemon-host=${MONERO_DAEMON_RPC_HOSTNAME} --daemon-port=${MONERO_DAEMON_RPC_PORT}
     volumes:
       - ./data/wallet:/home/monero/wallet
     depends_on:
@@ -42,7 +42,7 @@ services:
     environment:
       - RPC_ADDRESS=http://monero-wallet-rpc:28081/json_rpc
       - POSTGRESQL=postgresql://${POSTGRES_USERNAME}:${POSTGRES_PASSWORD}@postgresql:5432/${POSTGRES_DATABASE}?sslmode=disable
-      - ZERO_CONF=false # set true to enable 0-conf
+      - ZERO_CONF=true # set false to disable 0-conf
       # - SQLITE=file:/app/sqlite/db.sqlite
     depends_on:
       monero-wallet-rpc:

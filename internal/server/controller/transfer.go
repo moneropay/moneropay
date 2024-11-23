@@ -1,7 +1,7 @@
 /*
  * MoneroPay is a Monero payment processor.
- * Copyright (C) 2022 Laurynas Četyrkinas <stnby@kernal.eu>
  * Copyright (C) 2022 İrem Kuyucu <siren@kernal.eu>
+ * Copyright (C) 2024 Laurynas Četyrkinas <gpg@gpg.li>
  *
  * MoneroPay is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,10 +39,7 @@ func TransferPostHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	resp, err := daemon.TransferSplit(r.Context(), &walletrpc.TransferSplitRequest{
 		Destinations: j.Destinations,
-		// Wallet RPC docs on ring_size: "Unless dealing with pre rct outputs, this field is ignored on mainnet"
-		RingSize:   daemon.Config.TransferMixin + 1,
-		UnlockTime: daemon.Config.TransferUnlockTime,
-		Priority:   walletrpc.Priority(daemon.Config.TransferPriority),
+		Priority:     walletrpc.Priority(daemon.Config.TransferPriority),
 	})
 	if err != nil {
 		writeComplexError(w, err)

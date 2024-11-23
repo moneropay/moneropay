@@ -1,7 +1,7 @@
 /*
  * MoneroPay is a Monero payment processor.
- * Copyright (C) 2022 Laurynas Četyrkinas <stnby@kernal.eu>
  * Copyright (C) 2022 İrem Kuyucu <siren@kernal.eu>
+ * Copyright (C) 2024 Laurynas Četyrkinas <gpg@gpg.li>
  *
  * MoneroPay is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@ package daemon
 import (
 	"time"
 
-	"github.com/namsral/flag"
+	"github.com/jnovack/flag"
 )
 
 type config struct {
@@ -47,9 +47,9 @@ func loadConfig() {
 	flag.StringVar(&Config.rpcAddr, "rpc-address", "http://localhost:18082/json_rpc", "Wallet RPC server address")
 	flag.StringVar(&Config.rpcUser, "rpc-username", "", "Username for monero-wallet-rpc")
 	flag.StringVar(&Config.rpcPass, "rpc-password", "", "Password for monero-wallet-rpc")
-	flag.Uint64Var(&Config.TransferMixin, "transfer-mixin", 8, "Number of outputs from the blockchain to mix with (0 means no mixing)")
+	flag.Uint64Var(&Config.TransferMixin, "transfer-mixin", 0, "Deprecated and ignored, will be removed the next major release (3.0.0)")
 	flag.UintVar(&Config.TransferPriority, "transfer-priority", 0, "Set a priority for transactions")
-	flag.Uint64Var(&Config.TransferUnlockTime, "transfer-unlock-time", 10, "Number of blocks before the monero can be spent (0 to not add a lock)")
+	flag.Uint64Var(&Config.TransferUnlockTime, "transfer-unlock-time", 0, "Deprecated and ignored, will be removed the next major release (3.0.0)")
 	flag.StringVar(&Config.postgresCS, "postgresql", "postgresql://moneropay:s3cret@localhost:5432/moneropay", "PostgreSQL connection string")
 	flag.StringVar(&Config.sqliteCS, "sqlite", "", "SQLite3 connection string")
 	flag.StringVar(&Config.logFormat, "log-format", "pretty", "Log format (pretty or json)")

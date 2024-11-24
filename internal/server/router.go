@@ -1,7 +1,7 @@
 /*
  * MoneroPay is a Monero payment processor.
- * Copyright (C) 2022 Laurynas Četyrkinas <stnby@kernal.eu>
  * Copyright (C) 2022 İrem Kuyucu <siren@kernal.eu>
+ * Copyright (C) 2024 Laurynas Četyrkinas <gpg@gpg.li>
  *
  * MoneroPay is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -47,6 +47,7 @@ func initRouter() *chi.Mux {
 	r.Get("/balance", controller.BalanceHandler)
 	r.Post("/receive", controller.ReceivePostHandler)
 	r.Get("/receive/{address}", controller.ReceiveGetHandler)
+	r.Delete("/receive/{address}", controller.ReceiveDeleteHandler)
 	r.Post("/transfer", controller.TransferPostHandler)
 	r.Get("/transfer/{tx_hash}", controller.TransferGetHandler)
 	return r
@@ -55,17 +56,17 @@ func initRouter() *chi.Mux {
 func Run() {
 	h2s := &http2.Server{}
 	srv := &http.Server{
-		Addr: daemon.Config.BindAddr,
+		Addr:         daemon.Config.BindAddr,
 		WriteTimeout: 30 * time.Second,
-		ReadTimeout: 30 * time.Second,
-		Handler: h2c.NewHandler(initRouter(), h2s),
+		ReadTimeout:  30 * time.Second,
+		Handler:      h2c.NewHandler(initRouter(), h2s),
 	}
 	serverCtx, serverStopCtx := context.WithCancel(context.Background())
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	go func() {
 		<-sig
-		shutdownCtx, _ := context.WithTimeout(serverCtx, 30 * time.Second)
+		shutdownCtx, _ := context.WithTimeout(serverCtx, 30*time.Second)
 		go func() {
 			<-shutdownCtx.Done()
 			if shutdownCtx.Err() == context.DeadlineExceeded {

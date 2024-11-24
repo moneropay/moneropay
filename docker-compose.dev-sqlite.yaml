@@ -2,14 +2,16 @@ services:
   change-vol-ownership:
     image: alpine
     volumes:
-      - ./data/wallet:/mnt/wallet
+      - ./data-dev-sqlite/wallet:/mnt/wallet
     command: "chown -R 1000: /mnt/wallet"
 
   monero-wallet-rpc:
     image: ghcr.io/sethforprivacy/simple-monero-wallet-rpc
+    ports:
+      - 127.0.0.1:5001:28081
     command: --wallet-dir wallet --disable-rpc-login --rpc-bind-port=28081 --daemon-host=${MONERO_DAEMON_RPC_HOSTNAME} --daemon-port=${MONERO_DAEMON_RPC_PORT}
     volumes:
-      - ./data/wallet:/home/monero/wallet
+      - ./data-dev-sqlite/wallet:/home/monero/wallet
     depends_on:
       change-vol-ownership:
         condition: service_completed_successfully
@@ -20,33 +22,15 @@ services:
       retries: 10
     restart: unless-stopped
 
-  postgresql:
-    image: postgres:17-alpine
-    volumes:
-      - ./data/postgresql:/var/lib/postgresql/data
-    environment:
-      - POSTGRES_USER=${POSTGRES_USERNAME}
-      - POSTGRES_PASSWORD
-      - POSTGRES_DB=${POSTGRES_DATABASE}
-    healthcheck:
-      test: pg_isready -U ${POSTGRES_USERNAME}
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    restart: unless-stopped
-
   moneropay:
-    image: registry.gitlab.com/moneropay/moneropay:v2
-    # volumes:
-    #  - ./data/sqlite:/app/sqlite
+    build: .
+    volumes:
+      - ./data-dev-sqlite/sqlite:/app/sqlite
     environment:
       - RPC_ADDRESS=http://monero-wallet-rpc:28081/json_rpc
-      - POSTGRESQL=postgresql://${POSTGRES_USERNAME}:${POSTGRES_PASSWORD}@postgresql:5432/${POSTGRES_DATABASE}?sslmode=disable
-      - ZERO_CONF=true # set false to disable 0-conf
-      # - SQLITE=file:/app/sqlite/db.sqlite
+      - ZERO_CONF=true
+      - SQLITE=file:/app/sqlite/db.sqlite
     depends_on:
       monero-wallet-rpc:
-        condition: service_healthy
-      postgresql:
         condition: service_healthy
     restart: unless-stopped

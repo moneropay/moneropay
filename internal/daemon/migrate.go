@@ -34,8 +34,8 @@ func daemonMigrate() {
 func migrateReceivedAmount() {
 	ctx := context.Background()
 	rows, err := db.QueryContext(ctx,
-	    "SELECT subaddress_index,expected_amount,description,callback_url,created_at" +
-	    " FROM receivers WHERE creation_height IS NULL")
+		"SELECT subaddress_index,expected_amount,description,callback_url,created_at"+
+			" FROM receivers WHERE creation_height IS NULL")
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to query payment requests to migrate")
 	}
@@ -47,8 +47,7 @@ func migrateReceivedAmount() {
 	rs := make(map[uint64]*recv)
 	for rows.Next() {
 		var t recv
-		if err := rows.Scan(&t.index, &t.expected, &t.description, &t.callbackUrl, &t.createdAt);
-		    err != nil {
+		if err := rows.Scan(&t.index, &t.expected, &t.description, &t.callbackUrl, &t.createdAt); err != nil {
 			log.Fatal().Err(err).Msg("Failed to query payment requests to migrate")
 		}
 		t.creationHeight = h.Height
@@ -80,15 +79,15 @@ func migrateReceivedAmount() {
 			if eventHeight > lastCallbackHeight {
 				if err := callback(ctx, r, &t, locked); err != nil {
 					log.Error().Err(err).Uint64("address_index", t.SubaddrIndex.Minor).
-					    Uint64("amount", t.Amount).Str("tx_id", t.Txid).
-					    Uint64("event_height", eventHeight).Bool("locked", locked).
-					    Msg("Failed callback")
+						Uint64("amount", t.Amount).Str("tx_id", t.Txid).
+						Uint64("event_height", eventHeight).Bool("locked", locked).
+						Msg("Failed callback")
 					continue
 				}
 				log.Info().Uint64("address_index", t.SubaddrIndex.Minor).
-				    Uint64("amount", t.Amount).Str("tx_id", t.Txid).
-				    Uint64("event_height", eventHeight).Bool("locked", locked).
-				    Msg("Sent callback")
+					Uint64("amount", t.Amount).Str("tx_id", t.Txid).
+					Uint64("event_height", eventHeight).Bool("locked", locked).
+					Msg("Sent callback")
 				if eventHeight > maxHeight {
 					maxHeight = eventHeight
 				}
@@ -97,8 +96,8 @@ func migrateReceivedAmount() {
 	}
 	for _, r := range rs {
 		if _, err := db.ExecContext(ctx,
-		    "UPDATE receivers SET received_amount=$1,creation_height=$2 WHERE subaddress_index=$3",
-		    r.received, r.creationHeight, r.index); err != nil {
+			"UPDATE receivers SET received_amount=$1,creation_height=$2 WHERE subaddress_index=$3",
+			r.received, r.creationHeight, r.index); err != nil {
 			log.Fatal().Err(err).Msg("Migration failure")
 		}
 	}
@@ -106,7 +105,7 @@ func migrateReceivedAmount() {
 		lastCallbackHeight = maxHeight
 		if err := saveLastCallbackHeight(ctx); err != nil {
 			log.Fatal().Err(err).Uint64("height", lastCallbackHeight).
-			    Msg("Failed to save last callback height")
+				Msg("Failed to save last callback height")
 		}
 		log.Info().Uint64("height", lastCallbackHeight).Msg("Saved last callback height")
 	}

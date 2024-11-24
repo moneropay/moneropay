@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM techknowlogick/xgo:go-1.23.1 AS build
+FROM --platform=$BUILDPLATFORM techknowlogick/xgo:go-1.23.2 AS build
 
 ADD . /go/src
 WORKDIR /go/src

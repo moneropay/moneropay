@@ -1,8 +1,8 @@
 package daemon
 
 import (
-	"time"
 	"os"
+	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -11,6 +11,6 @@ import (
 func logger() {
 	if Config.logFormat == "pretty" {
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr,
-		    TimeFormat: time.RFC3339})
+			TimeFormat: time.RFC3339})
 	}
 }

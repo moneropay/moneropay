@@ -2,6 +2,7 @@
  * moneropay-db-port is a helper program to switch between PostgreSQL
  * and SQLite3.
  * Copyright (C) 2023 İrem Kuyucu <siren@kernal.eu>
+ * Copyright (C) 2024 Laurynas Četyrkinas <gpg@gpg.li>
  *
  * MoneroPay is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -49,6 +50,7 @@ func main() {
 	porter.migrateLastBlockHeightRow()
 	porter.migrateSubaddressesRows()
 	porter.migrateReceiversRows()
+	porter.migrateMempoolSeenRows()
 
 	if err := porter.tx.Commit(); err != nil {
 		log.Fatal("Failed to commit changes")
@@ -83,7 +85,7 @@ func parseOptions() (sourceCs, targetCs string, timeout time.Duration) {
 	flag.Parse()
 
 	if sourceCs == "" || targetCs == "" {
-		log.Println("-from and -to cannot be empty.\n")
+		log.Println("-from and -to cannot be empty.")
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
@@ -232,4 +234,43 @@ func (d *dbPorter) migrateReceiversRows() {
 		rowsMigrated += 1
 	}
 	log.Printf("receivers: migrated %d row(s).", rowsMigrated)
+}
+
+func (d *dbPorter) migrateMempoolSeenRows() {
+	ctx1, c1 := context.WithTimeout(context.Background(), d.timeout)
+	defer c1()
+	rows, err := d.source.QueryContext(ctx1, "SELECT txid FROM mempool_seen")
+	if err != nil {
+		log.Fatal("mempool_seen select: ", err)
+	}
+	defer rows.Close()
+
+	type mempoolSeen struct {
+		txid string
+	}
+
+	rowsMigrated := 0
+	for rows.Next() {
+		var r mempoolSeen
+		if err := rows.Scan(&r.txid); err != nil {
+			if rollbackErr := d.tx.Rollback(); rollbackErr != nil {
+				log.Fatalf("mempool_seen: scan failed: %v, unable to back: %v",
+					err, rollbackErr)
+			}
+			log.Fatal("mempool_seen scan: ", err)
+		}
+
+		ctx2, c2 := context.WithTimeout(context.Background(), d.timeout)
+		defer c2()
+		_, err := d.tx.ExecContext(ctx2, "INSERT INTO mempool_seen(txid)VALUES($1)", r.txid)
+		if err != nil {
+			if rollbackErr := d.tx.Rollback(); rollbackErr != nil {
+				log.Fatalf("mempool_seen: insert failed: %v, unable to back: %v",
+					err, rollbackErr)
+			}
+			log.Fatal("mempool_seen insert: ", err)
+		}
+		rowsMigrated += 1
+	}
+	log.Printf("mempool_seen: migrated %d row(s).", rowsMigrated)
 }

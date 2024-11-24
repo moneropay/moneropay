@@ -32,8 +32,8 @@ import (
 func writeError(w http.ResponseWriter, status int, code *int, message string) {
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(model.ErrorResponse{
-		Status: status,
-		Code: code,
+		Status:  status,
+		Code:    code,
 		Message: message,
 	})
 }

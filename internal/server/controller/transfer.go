@@ -1,7 +1,7 @@
 /*
  * MoneroPay is a Monero payment processor.
- * Copyright (C) 2022 Laurynas Četyrkinas <stnby@kernal.eu>
  * Copyright (C) 2022 İrem Kuyucu <siren@kernal.eu>
+ * Copyright (C) 2024 Laurynas Četyrkinas <gpg@gpg.li>
  *
  * MoneroPay is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,10 +39,7 @@ func TransferPostHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	resp, err := daemon.TransferSplit(r.Context(), &walletrpc.TransferSplitRequest{
 		Destinations: j.Destinations,
-		// Wallet RPC docs on ring_size: "Unless dealing with pre rct outputs, this field is ignored on mainnet"
-		RingSize: daemon.Config.TransferMixin + 1,
-		UnlockTime: daemon.Config.TransferUnlockTime,
-		Priority: walletrpc.Priority(daemon.Config.TransferPriority),
+		Priority:     walletrpc.Priority(daemon.Config.TransferPriority),
 	})
 	if err != nil {
 		writeComplexError(w, err)
@@ -55,10 +52,10 @@ func TransferPostHandler(w http.ResponseWriter, r *http.Request) {
 		fee += uint64(resp.FeeList[i])
 	}
 	d := model.TransferPostResponse{
-		Amount: amount,
-		Fee: fee,
-		TxHash: resp.TxHashList[0],
-		TxHashList: resp.TxHashList,
+		Amount:       amount,
+		Fee:          fee,
+		TxHash:       resp.TxHashList[0],
+		TxHashList:   resp.TxHashList,
 		Destinations: j.Destinations,
 	}
 	json.NewEncoder(w).Encode(d)
@@ -73,25 +70,25 @@ func TransferGetHandler(w http.ResponseWriter, r *http.Request) {
 		writeComplexError(w, err)
 		return
 	}
-	if (resp.Transfer.Type == "in") {
+	if resp.Transfer.Type == "in" {
 		writeError(w, http.StatusBadRequest, nil, "Not an outgoing transaction")
 		return
 	}
-	if (resp.Transfer.Type == "out") {
+	if resp.Transfer.Type == "out" {
 		resp.Transfer.Type = "completed"
 	}
 
 	d := model.TransferGetResponse{
-		Amount: resp.Transfer.Amount,
-		Fee: resp.Transfer.Fee,
-		State: resp.Transfer.Type,
-		Destinations: resp.Transfer.Destinations,
-		Confirmations: resp.Transfer.Confirmations,
+		Amount:          resp.Transfer.Amount,
+		Fee:             resp.Transfer.Fee,
+		State:           resp.Transfer.Type,
+		Destinations:    resp.Transfer.Destinations,
+		Confirmations:   resp.Transfer.Confirmations,
 		DoubleSpendSeen: resp.Transfer.DoubleSpendSeen,
-		Height: resp.Transfer.Height,
-		Timestamp: time.Unix(int64(resp.Transfer.Timestamp), 0),
-		UnlockTime: resp.Transfer.UnlockTime,
-		TxHash: resp.Transfer.Txid,
+		Height:          resp.Transfer.Height,
+		Timestamp:       time.Unix(int64(resp.Transfer.Timestamp), 0),
+		UnlockTime:      resp.Transfer.UnlockTime,
+		TxHash:          resp.Transfer.Txid,
 	}
 	json.NewEncoder(w).Encode(d)
 }

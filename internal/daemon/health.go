@@ -31,34 +31,45 @@ import (
 
 func Health(ctx context.Context) model.HealthResponse {
 	d := model.HealthResponse{Status: http.StatusOK}
-	var wg sync.WaitGroup
+	done := make(chan struct{})
 	ctxt, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	wg.Add(1)
+
 	go func() {
-		defer wg.Done()
-		if err := db.PingContext(ctxt); err != nil {
-			return
-		}
-		if Config.sqliteCS != "" {
-			d.Services.SQLite = true
-		} else {
-			d.Services.PostgreSQL = true
-		}
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := db.PingContext(ctxt); err != nil {
+				return
+			}
+			if Config.sqliteCS != "" {
+				d.Services.SQLite = true
+			} else {
+				d.Services.PostgreSQL = true
+			}
+		}()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			wMutex.Lock()
+			defer wMutex.Unlock()
+			if _, err := wallet.Refresh(ctxt, &walletrpc.RefreshRequest{}); err != nil {
+				return
+			}
+			d.Services.WalletRPC = true
+		}()
+		wg.Wait()
+		close(done)
 	}()
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		wMutex.Lock()
-		defer wMutex.Unlock()
-		if _, err := wallet.Refresh(ctxt, &walletrpc.RefreshRequest{}); err != nil {
-			return
-		}
-		d.Services.WalletRPC = true
-	}()
-	wg.Wait()
-	if !(d.Services.PostgreSQL || d.Services.SQLite) || !d.Services.WalletRPC {
+
+	select {
+	case <-ctxt.Done():
 		d.Status = http.StatusServiceUnavailable
+	case <-done:
+		if !(d.Services.PostgreSQL || d.Services.SQLite) || !d.Services.WalletRPC {
+			d.Status = http.StatusServiceUnavailable
+		}
 	}
 	return d
 }

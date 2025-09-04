@@ -84,6 +84,7 @@ func getReceivedTransfers(ctx context.Context, index, min, max uint64) ([]wallet
 	resp, err := GetTransfers(ctx, &walletrpc.GetTransfersRequest{
 		SubaddrIndices: []uint64{index},
 		In:             true,
+		Pool:           Config.zeroConf,
 		FilterByHeight: (min > 0 || max > 0),
 		MinHeight:      min,
 		MaxHeight:      max,
@@ -91,7 +92,11 @@ func getReceivedTransfers(ctx context.Context, index, min, max uint64) ([]wallet
 	if err != nil {
 		return nil, err
 	}
-	return resp.In, nil
+	comb := resp.In
+	if Config.zeroConf {
+		comb = append(resp.In, resp.Pool...)
+	}
+	return comb, nil
 }
 
 func GetPaymentRequest(ctx context.Context, address string, min, max uint64) (model.ReceiveGetResponse, error) {

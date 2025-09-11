@@ -1,6 +1,8 @@
 # MoneroPay
 A backend service for receiving, sending and tracking status of Monero payments.
 
+[![MoneroPay.eu](https://moneropay.eu/images/mpay-banner.webp)](https://moneropay.eu/)
+
 MoneroPay provides a simple HTTP API for merchants or individuals who want to accept XMR.
 MoneroPay supports optional status updates via HTTP Callbacks.
 

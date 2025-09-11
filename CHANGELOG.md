@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.0] - 2025-09-11
+### Added
+- When 0-conf is enabled the `GET /receive` endpoint now returns mempool transactions.
+
 ## [2.7.1] - 2024-12-28
 ### Fixed
 - The `/health` endpoint now handles timeouts properly instead of hanging. This bug was introduced in 2.7.0.

@@ -30,6 +30,7 @@ Example projects that use MoneroPay:
 - [Monero ATM Project](https://atm.monero.is)
 - [Monero Pagamentos Bot](http://t.me/MoneroPagamentosBot)
 - [kernal-donate](https://gitlab.com/kernal/kDonate)
+- [XMRpos](https://github.com/Monero-Merchant/monero-merchant)
 
 Do you have a project that uses MoneroPay? Tell us about it and we'll list your project here!
 

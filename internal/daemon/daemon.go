@@ -21,7 +21,7 @@ package daemon
 
 import "context"
 
-const Version = "2.8.0"
+const Version = "2.8.1"
 
 func Run() {
 	loadConfig()

@@ -1,6 +1,6 @@
 /*
  * MoneroPay is a Monero payment processor.
- * Copyright (C) 2022 Laurynas Četyrkinas <stnby@kernal.eu>
+ * Copyright (C) 2026 Laurynas Četyrkinas <laurynas@digilol.net>
  * Copyright (C) 2022 İrem Kuyucu <siren@kernal.eu>
  *
  * MoneroPay is free software: you can redistribute it and/or modify
@@ -26,24 +26,28 @@ import (
 	"gitlab.com/moneropay/go-monero/walletrpc"
 )
 
-func daemonMigrate() {
-	migrateReceivedAmount()
-	daemonWarn()
+// runMigrations runs data migrations and shows deprecation warnings.
+func (d *Daemon) runMigrations() {
+	d.migrateReceivedAmount()
+	d.showDeprecationWarnings()
 }
 
-func migrateReceivedAmount() {
+// migrateReceivedAmount migrates old payment requests that don't have creation_height set.
+func (d *Daemon) migrateReceivedAmount() {
 	ctx := context.Background()
-	rows, err := db.QueryContext(ctx,
+	rows, err := d.db.QueryContext(ctx,
 		"SELECT subaddress_index,expected_amount,description,callback_url,created_at"+
 			" FROM receivers WHERE creation_height IS NULL")
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to query payment requests to migrate")
 	}
 	defer rows.Close()
-	h, err := wallet.GetHeight(ctx)
+
+	h, err := d.wallet.GetHeight(ctx)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to get wallet height")
 	}
+
 	rs := make(map[uint64]*recv)
 	for rows.Next() {
 		var t recv
@@ -53,17 +57,20 @@ func migrateReceivedAmount() {
 		t.creationHeight = h.Height
 		rs[t.index] = &t
 	}
+
 	if len(rs) == 0 {
 		return
 	}
+
 	log.Info().Msg("Migration started")
-	resp, err := GetTransfers(ctx, &walletrpc.GetTransfersRequest{
+	resp, err := d.GetTransfers(ctx, &walletrpc.GetTransfersRequest{
 		In: true,
 	})
 	if err != nil {
 		log.Fatal().Err(err).Msg("Migration failure")
 	}
-	maxHeight := lastCallbackHeight
+
+	maxHeight := d.lastCallbackHeight
 	for _, t := range resp.In {
 		if r, ok := rs[t.SubaddrIndex.Minor]; ok {
 			locked, eventHeight := getTransferLockStatus(t)
@@ -76,8 +83,8 @@ func migrateReceivedAmount() {
 			} else {
 				r.received += t.Amount
 			}
-			if eventHeight > lastCallbackHeight {
-				if err := callback(ctx, r, &t, locked); err != nil {
+			if eventHeight > d.lastCallbackHeight {
+				if err := d.sendPaymentCallback(ctx, r, &t, locked); err != nil {
 					log.Error().Err(err).Uint64("address_index", t.SubaddrIndex.Minor).
 						Uint64("amount", t.Amount).Str("tx_id", t.Txid).
 						Uint64("event_height", eventHeight).Bool("locked", locked).
@@ -94,24 +101,27 @@ func migrateReceivedAmount() {
 			}
 		}
 	}
+
 	for _, r := range rs {
-		if _, err := db.ExecContext(ctx,
+		if _, err := d.db.ExecContext(ctx,
 			"UPDATE receivers SET received_amount=$1,creation_height=$2 WHERE subaddress_index=$3",
 			r.received, r.creationHeight, r.index); err != nil {
 			log.Fatal().Err(err).Msg("Migration failure")
 		}
 	}
-	if maxHeight > lastCallbackHeight {
-		lastCallbackHeight = maxHeight
-		if err := saveLastCallbackHeight(ctx); err != nil {
-			log.Fatal().Err(err).Uint64("height", lastCallbackHeight).
+
+	if maxHeight > d.lastCallbackHeight {
+		d.lastCallbackHeight = maxHeight
+		if err := d.saveLastCallbackHeight(ctx); err != nil {
+			log.Fatal().Err(err).Uint64("height", d.lastCallbackHeight).
 				Msg("Failed to save last callback height")
 		}
-		log.Info().Uint64("height", lastCallbackHeight).Msg("Saved last callback height")
+		log.Info().Uint64("height", d.lastCallbackHeight).Msg("Saved last callback height")
 	}
 	log.Info().Msg("Migration ended")
 }
 
-func daemonWarn() {
+// showDeprecationWarnings logs deprecation warnings for upcoming changes.
+func (d *Daemon) showDeprecationWarnings() {
 	log.Warn().Msg("Deprecated: TxHash (tx_hash) field will be removed the next major release (3.0.0). Please use TxHashList (tx_hash_list) instead. See here for more details: https://gitlab.com/moneropay/moneropay/-/merge_requests/13")
 }

@@ -16,22 +16,13 @@
  * along with MoneroPay.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package daemon
+package model
 
-import (
-	"os"
-	"time"
-
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
-)
-
-// SetupLogger configures the global logger based on the format setting.
-func SetupLogger(format string) {
-	if format == "pretty" {
-		log.Logger = log.Output(zerolog.ConsoleWriter{
-			Out:        os.Stderr,
-			TimeFormat: time.RFC3339,
-		})
-	}
+type KeysResponse struct {
+	Mnemonic        string `json:"mnemonic"`
+	RestoreHeight   uint64 `json:"restore_height"`
+	SpendKeyPublic  string `json:"spend_key_public"`
+	SpendKeyPrivate string `json:"spend_key_private"`
+	ViewKeyPublic   string `json:"view_key_public"`
+	ViewKeyPrivate  string `json:"view_key_private"`
 }

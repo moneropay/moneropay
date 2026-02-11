@@ -1,6 +1,6 @@
 /*
  * MoneroPay is a Monero payment processor.
- * Copyright (C) 2022 Laurynas Četyrkinas <stnby@kernal.eu>
+ * Copyright (C) 2026 Laurynas Četyrkinas <laurynas@digilol.net>
  * Copyright (C) 2022 İrem Kuyucu <siren@kernal.eu>
  *
  * MoneroPay is free software: you can redistribute it and/or modify
@@ -26,17 +26,17 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"gitlab.com/moneropay/moneropay/v2/internal/daemon"
 	"gitlab.com/moneropay/moneropay/v2/pkg/model"
 )
 
-func ReceivePostHandler(w http.ResponseWriter, r *http.Request) {
+// ReceivePostHandler creates a new payment request.
+func (c *Controller) ReceivePostHandler(w http.ResponseWriter, r *http.Request) {
 	var j model.ReceivePostRequest
 	if err := json.NewDecoder(r.Body).Decode(&j); err != nil {
 		writeError(w, http.StatusBadRequest, nil, err.Error())
 		return
 	}
-	a, t, err := daemon.Receive(r.Context(), j.Amount, j.Description, j.CallbackUrl)
+	a, t, err := c.Daemon.Receive(r.Context(), j.Amount, j.Description, j.CallbackUrl)
 	if err != nil {
 		writeComplexError(w, err)
 		return
@@ -50,7 +50,8 @@ func ReceivePostHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(d)
 }
 
-func ReceiveGetHandler(w http.ResponseWriter, r *http.Request) {
+// ReceiveGetHandler returns the status of a payment request.
+func (c *Controller) ReceiveGetHandler(w http.ResponseWriter, r *http.Request) {
 	a := chi.URLParam(r, "address")
 	// Parse optional GET parameters.
 	var min, max uint64
@@ -74,7 +75,7 @@ func ReceiveGetHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	d, err := daemon.GetPaymentRequest(r.Context(), a, min, max)
+	d, err := c.Daemon.GetPaymentRequest(r.Context(), a, min, max)
 	if err != nil {
 		writeComplexError(w, err)
 		return
@@ -82,9 +83,10 @@ func ReceiveGetHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(d)
 }
 
-func ReceiveDeleteHandler(w http.ResponseWriter, r *http.Request) {
+// ReceiveDeleteHandler deletes a payment request.
+func (c *Controller) ReceiveDeleteHandler(w http.ResponseWriter, r *http.Request) {
 	a := chi.URLParam(r, "address")
-	err := daemon.DeletePaymentRequest(r.Context(), a)
+	err := c.Daemon.DeletePaymentRequest(r.Context(), a)
 	if err != nil {
 		writeComplexError(w, err)
 		return

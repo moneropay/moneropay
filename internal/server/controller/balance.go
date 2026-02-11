@@ -1,6 +1,6 @@
 /*
  * MoneroPay is a Monero payment processor.
- * Copyright (C) 2022 Laurynas Četyrkinas <stnby@kernal.eu>
+ * Copyright (C) 2026 Laurynas Četyrkinas <laurynas@digilol.net>
  * Copyright (C) 2022 İrem Kuyucu <siren@kernal.eu>
  *
  * MoneroPay is free software: you can redistribute it and/or modify
@@ -23,12 +23,12 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"gitlab.com/moneropay/moneropay/v2/internal/daemon"
 	"gitlab.com/moneropay/moneropay/v2/pkg/model"
 )
 
-func BalanceHandler(w http.ResponseWriter, r *http.Request) {
-	resp, err := daemon.Balance(r.Context(), []uint64{0})
+// BalanceHandler returns the wallet balance.
+func (c *Controller) BalanceHandler(w http.ResponseWriter, r *http.Request) {
+	resp, err := c.Daemon.Balance(r.Context(), []uint64{0})
 	if err != nil {
 		writeComplexError(w, err)
 		return

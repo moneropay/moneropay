@@ -1,7 +1,7 @@
 /*
  * MoneroPay is a Monero payment processor.
  * Copyright (C) 2022 İrem Kuyucu <siren@kernal.eu>
- * Copyright (C) 2024 Laurynas Četyrkinas <gpg@gpg.li>
+ * Copyright (C) 2026 Laurynas Četyrkinas <laurynas@digilol.net>
  *
  * MoneroPay is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,19 +27,23 @@ import (
 	"github.com/go-chi/chi/v5"
 	"gitlab.com/moneropay/go-monero/walletrpc"
 
-	"gitlab.com/moneropay/moneropay/v2/internal/daemon"
 	"gitlab.com/moneropay/moneropay/v2/pkg/model"
 )
 
-func TransferPostHandler(w http.ResponseWriter, r *http.Request) {
+// TransferPostHandler sends funds to one or more destinations.
+func (c *Controller) TransferPostHandler(w http.ResponseWriter, r *http.Request) {
+	if c.Daemon.IsViewOnly() {
+		writeError(w, http.StatusForbidden, nil, "This is a view-only wallet")
+		return
+	}
 	var j model.TransferPostRequest
 	if err := json.NewDecoder(r.Body).Decode(&j); err != nil {
 		writeError(w, http.StatusBadRequest, nil, err.Error())
 		return
 	}
-	resp, err := daemon.TransferSplit(r.Context(), &walletrpc.TransferSplitRequest{
+	resp, err := c.Daemon.TransferSplit(r.Context(), &walletrpc.TransferSplitRequest{
 		Destinations: j.Destinations,
-		Priority:     walletrpc.Priority(daemon.Config.TransferPriority),
+		Priority:     walletrpc.Priority(c.Daemon.Config().TransferPriority),
 	})
 	if err != nil {
 		writeComplexError(w, err)
@@ -61,9 +65,10 @@ func TransferPostHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(d)
 }
 
-func TransferGetHandler(w http.ResponseWriter, r *http.Request) {
+// TransferGetHandler returns the status of an outgoing transfer.
+func (c *Controller) TransferGetHandler(w http.ResponseWriter, r *http.Request) {
 	txHash := chi.URLParam(r, "tx_hash")
-	resp, err := daemon.GetTransferByTxid(r.Context(), &walletrpc.GetTransferByTxidRequest{
+	resp, err := c.Daemon.GetTransferByTxid(r.Context(), &walletrpc.GetTransferByTxidRequest{
 		Txid: txHash,
 	})
 	if err != nil {

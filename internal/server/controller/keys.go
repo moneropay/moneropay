@@ -16,22 +16,29 @@
  * along with MoneroPay.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package daemon
+package controller
 
 import (
-	"os"
-	"time"
-
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
+	"encoding/json"
+	"net/http"
 )
 
-// SetupLogger configures the global logger based on the format setting.
-func SetupLogger(format string) {
-	if format == "pretty" {
-		log.Logger = log.Output(zerolog.ConsoleWriter{
-			Out:        os.Stderr,
-			TimeFormat: time.RFC3339,
-		})
+// KeysGetHandler returns the one-time wallet keys (view-only init mode only).
+func (c *Controller) KeysGetHandler(w http.ResponseWriter, r *http.Request) {
+	if !c.Daemon.IsViewOnlyInit() {
+		writeError(w, http.StatusNotFound, nil, "No keys available. Server was not started with --init-view-only flag")
+		return
 	}
+	if c.Daemon.IsKeysConsumed() {
+		writeError(w, http.StatusGone, nil, "Keys have already been retrieved and deleted")
+		return
+	}
+
+	keys, err := c.Daemon.GetOneTimeKeys()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, nil, err.Error())
+		return
+	}
+
+	json.NewEncoder(w).Encode(keys)
 }

@@ -16,22 +16,16 @@
  * along with MoneroPay.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package daemon
+package controller
 
-import (
-	"os"
-	"time"
+import "gitlab.com/moneropay/moneropay/v2/internal/daemon"
 
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
-)
+// Controller provides HTTP handlers with access to the daemon.
+type Controller struct {
+	Daemon *daemon.Daemon
+}
 
-// SetupLogger configures the global logger based on the format setting.
-func SetupLogger(format string) {
-	if format == "pretty" {
-		log.Logger = log.Output(zerolog.ConsoleWriter{
-			Out:        os.Stderr,
-			TimeFormat: time.RFC3339,
-		})
-	}
+// New creates a new Controller with the given daemon.
+func New(d *daemon.Daemon) *Controller {
+	return &Controller{Daemon: d}
 }

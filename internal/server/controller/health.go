@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Laurynas Četyrkinas <stnby@kernal.eu>
+ * Copyright (C) 2026 Laurynas Četyrkinas <laurynas@digilol.net>
  * Copyright (C) 2022 İrem Kuyucu <siren@kernal.eu>
  *
  * This file is part of MoneroPay.
@@ -23,12 +23,11 @@ package controller
 import (
 	"encoding/json"
 	"net/http"
-
-	"gitlab.com/moneropay/moneropay/v2/internal/daemon"
 )
 
-func HealthHandler(w http.ResponseWriter, r *http.Request) {
-	resp := daemon.Health(r.Context())
+// HealthHandler returns the health status of all services.
+func (c *Controller) HealthHandler(w http.ResponseWriter, r *http.Request) {
+	resp := c.Daemon.Health(r.Context())
 	w.WriteHeader(resp.Status)
 	json.NewEncoder(w).Encode(resp)
 }

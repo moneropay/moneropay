@@ -1,6 +1,6 @@
 /*
  * MoneroPay is a Monero payment processor.
- * Copyright (C) 2022 Laurynas Četyrkinas <stnby@kernal.eu>
+ * Copyright (C) 2026 Laurynas Četyrkinas <laurynas@digilol.net>
  * Copyright (C) 2022 İrem Kuyucu <siren@kernal.eu>
  *
  * MoneroPay is free software: you can redistribute it and/or modify
@@ -32,25 +32,28 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-var db *sql.DB
-
-func dbConnect() {
+// connectDB establishes connection to the database and runs migrations.
+func (d *Daemon) connectDB() {
 	var err error
-	if Config.sqliteCS != "" {
-		DbMigrate("file://db/sqlite3", SqliteMigrateParseDSN(Config.sqliteCS))
-		if db, err = sql.Open("sqlite3", Config.sqliteCS); err != nil {
+
+	if d.config.SQLiteCS != "" {
+		DbMigrate("file://db/sqlite3", SqliteMigrateParseDSN(d.config.SQLiteCS))
+		if d.db, err = sql.Open("sqlite3", d.config.SQLiteCS); err != nil {
 			log.Fatal().Err(err).Msg("Failed to open SQLite3 database")
 		}
 		return
 	}
-	DbMigrate("file://db/postgres", Config.postgresCS)
-	if db, err = sql.Open("pgx", Config.postgresCS); err != nil {
+
+	DbMigrate("file://db/postgres", d.config.PostgresCS)
+	if d.db, err = sql.Open("pgx", d.config.PostgresCS); err != nil {
 		log.Fatal().Err(err).Msg("Failed to open PostgreSQL database")
 	}
 }
 
-func DbMigrate(url, conn string) {
-	m, err := migrate.New(url, conn)
+// DbMigrate runs database migrations from the given URL to the connection.
+// This is exported for use by moneropay-port-db tool.
+func DbMigrate(migrateURL, conn string) {
+	m, err := migrate.New(migrateURL, conn)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to initialize new migrate instance")
 	}
@@ -62,7 +65,9 @@ func DbMigrate(url, conn string) {
 	}
 }
 
-// go-migrate's sqlite3 library doesn't use standard DSN connection strings
+// SqliteMigrateParseDSN converts a SQLite DSN to the format expected by golang-migrate.
+// go-migrate's sqlite3 library doesn't use standard DSN connection strings.
+// This is exported for use by moneropay-port-db tool.
 func SqliteMigrateParseDSN(conn string) string {
 	u, err := url.Parse(conn)
 	if err != nil {

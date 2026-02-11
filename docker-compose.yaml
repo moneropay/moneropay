@@ -21,7 +21,7 @@ services:
     restart: unless-stopped
 
   postgresql:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     volumes:
       - ./data/postgresql:/var/lib/postgresql/data
     environment:
@@ -44,6 +44,10 @@ services:
       - POSTGRESQL=postgresql://${POSTGRES_USERNAME}:${POSTGRES_PASSWORD}@postgresql:5432/${POSTGRES_DATABASE}?sslmode=disable
       - ZERO_CONF=true # set false to disable 0-conf
       # - SQLITE=file:/app/sqlite/db.sqlite
+      # View-only wallet initialization (uncomment all three for first run, call GET /keys to create wallet)
+      # - INIT_VIEW_ONLY=true
+      # - INIT_VIEW_ONLY_NETWORK=mainnet # mainnet, testnet, or stagenet
+      # - DAEMON_ADDRESS=http://${MONERO_DAEMON_RPC_HOSTNAME}:${MONERO_DAEMON_RPC_PORT}/json_rpc
     depends_on:
       monero-wallet-rpc:
         condition: service_healthy

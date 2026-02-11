@@ -23,7 +23,7 @@ services:
     restart: unless-stopped
 
   postgresql:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     volumes:
       - ./data-dev-postgresql/postgresql:/var/lib/postgresql/data
     environment:

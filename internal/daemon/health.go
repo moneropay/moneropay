@@ -1,7 +1,7 @@
 /*
  * MoneroPay is a Monero payment processor.
  * Copyright (C) 2022 İrem Kuyucu <siren@kernal.eu>
- * Copyright (C) 2024 Laurynas Četyrkinas <gpg@gpg.li>
+ * Copyright (C) 2026 Laurynas Četyrkinas <laurynas@digilol.net>
  *
  * MoneroPay is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,51 +25,59 @@ import (
 	"sync"
 	"time"
 
-	"gitlab.com/moneropay/go-monero/walletrpc"
 	"gitlab.com/moneropay/moneropay/v2/pkg/model"
 )
 
-func Health(ctx context.Context) model.HealthResponse {
-	d := model.HealthResponse{Status: http.StatusOK}
+// Health checks the health of all daemon services and returns their status.
+func (d *Daemon) Health(ctx context.Context) model.HealthResponse {
+	resp := model.HealthResponse{Status: http.StatusOK}
+
+	// In view-only init mode with keys pending, return OK with partial status
+	// The server is running and ready to serve /keys
+	if d.IsKeysPending() {
+		resp.Services.KeysPending = true
+		return resp
+	}
+
 	done := make(chan struct{})
 	ctxt, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	go func() {
 		var wg sync.WaitGroup
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			if err := db.PingContext(ctxt); err != nil {
+
+		wg.Go(func() {
+			if d.db == nil {
 				return
 			}
-			if Config.sqliteCS != "" {
-				d.Services.SQLite = true
+			if err := d.db.PingContext(ctxt); err != nil {
+				return
+			}
+			if d.config.SQLiteCS != "" {
+				resp.Services.SQLite = true
 			} else {
-				d.Services.PostgreSQL = true
+				resp.Services.PostgreSQL = true
 			}
-		}()
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			wMutex.Lock()
-			defer wMutex.Unlock()
-			if _, err := wallet.Refresh(ctxt, &walletrpc.RefreshRequest{}); err != nil {
+		})
+
+		wg.Go(func() {
+			if _, err := d.refresh(ctxt); err != nil {
 				return
 			}
-			d.Services.WalletRPC = true
-		}()
+			resp.Services.WalletRPC = true
+		})
+
 		wg.Wait()
 		close(done)
 	}()
 
 	select {
 	case <-ctxt.Done():
-		d.Status = http.StatusServiceUnavailable
+		resp.Status = http.StatusServiceUnavailable
 	case <-done:
-		if !(d.Services.PostgreSQL || d.Services.SQLite) || !d.Services.WalletRPC {
-			d.Status = http.StatusServiceUnavailable
+		if !(resp.Services.PostgreSQL || resp.Services.SQLite) || !resp.Services.WalletRPC {
+			resp.Status = http.StatusServiceUnavailable
 		}
 	}
-	return d
+	return resp
 }

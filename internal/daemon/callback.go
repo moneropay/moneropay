@@ -1,6 +1,6 @@
 /*
  * MoneroPay is a Monero payment processor.
- * Copyright (C) 2022 Laurynas Četyrkinas <stnby@kernal.eu>
+ * Copyright (C) 2026 Laurynas Četyrkinas <laurynas@digilol.net>
  * Copyright (C) 2022 İrem Kuyucu <siren@kernal.eu>
  *
  * MoneroPay is free software: you can redistribute it and/or modify
@@ -33,62 +33,68 @@ import (
 	"gitlab.com/moneropay/moneropay/v2/pkg/model"
 )
 
+// recv represents a payment receiver/request from the database.
 type recv struct {
 	index, expected, received, creationHeight uint64
-	description, callbackUrl                  string
+	address, description, callbackUrl         string
 	createdAt                                 time.Time
 	updated                                   bool
 }
 
-var (
-	// Height of the transaction that last resulted in a callback
-	lastCallbackHeight uint64
-
-	// Last reported height by wallet-rpc
-	lastSeenHeight uint64
-)
-
-func readLastCallbackHeight(ctx context.Context) {
-	row := db.QueryRowContext(ctx, "SELECT height FROM last_block_height")
-	if err := row.Scan(&lastCallbackHeight); err != nil {
+// readLastCallbackHeight loads the last callback height from the database.
+func (d *Daemon) readLastCallbackHeight(ctx context.Context) {
+	row := d.db.QueryRowContext(ctx, "SELECT height FROM last_block_height")
+	if err := row.Scan(&d.lastCallbackHeight); err != nil {
 		log.Fatal().Err(err).Msg("Failed to read last callback height")
 	}
 }
 
-func saveLastCallbackHeight(ctx context.Context) error {
-	_, err := db.ExecContext(ctx, "UPDATE last_block_height SET height=$1",
-		lastCallbackHeight)
+// saveLastCallbackHeight persists the last callback height to the database.
+func (d *Daemon) saveLastCallbackHeight(ctx context.Context) error {
+	_, err := d.db.ExecContext(ctx, "UPDATE last_block_height SET height=$1",
+		d.lastCallbackHeight)
 	return err
 }
 
-func sendCallbackRequest(d model.CallbackResponse, u string) error {
-	j, _ := json.Marshal(d)
-	req, err := http.NewRequest(http.MethodPost, u, bytes.NewBuffer(j))
+// sendCallbackRequest sends a POST request with the callback payload to the given URL.
+func sendCallbackRequest(data model.CallbackResponse, url, address string) error {
+	j, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(j))
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "MoneroPay/"+Version)
+	req.Header.Set("X-MoneroPay-Address", address)
 	c := &http.Client{Timeout: 30 * time.Second}
-	_, err = c.Do(req)
-	return err
-}
-
-func callback(ctx context.Context, r *recv, t *walletrpc.Transfer, locked bool) error {
-	resp, err := Balance(ctx, []uint64{r.index})
+	resp, err := c.Do(req)
 	if err != nil {
 		return err
 	}
-	// Prepare a callback json payload.
-	var d model.CallbackResponse
-	d.Amount.Expected = r.expected
-	d.Amount.Covered.Total = r.received + (resp.PerSubaddress[0].Balance -
+	resp.Body.Close()
+	return nil
+}
+
+// sendPaymentCallback prepares and sends a callback for a payment transfer.
+func (d *Daemon) sendPaymentCallback(ctx context.Context, r *recv, t *walletrpc.Transfer, locked bool) error {
+	resp, err := d.Balance(ctx, []uint64{r.index})
+	if err != nil {
+		return err
+	}
+
+	// Prepare callback payload
+	var data model.CallbackResponse
+	data.Amount.Expected = r.expected
+	data.Amount.Covered.Total = r.received + (resp.PerSubaddress[0].Balance -
 		resp.PerSubaddress[0].UnlockedBalance)
-	d.Amount.Covered.Unlocked = r.received
-	d.Complete = d.Amount.Covered.Unlocked >= d.Amount.Expected
-	d.Description = r.description
-	d.CreatedAt = r.createdAt
-	d.Transaction = model.TransactionData{
+	data.Amount.Covered.Unlocked = r.received
+	data.Complete = data.Amount.Covered.Unlocked >= data.Amount.Expected
+	data.Description = r.description
+	data.CreatedAt = r.createdAt
+	data.Transaction = model.TransactionData{
 		Amount:          t.Amount,
 		Confirmations:   t.Confirmations,
 		DoubleSpendSeen: t.DoubleSpendSeen,
@@ -99,9 +105,10 @@ func callback(ctx context.Context, r *recv, t *walletrpc.Transfer, locked bool) 
 		UnlockTime:      t.UnlockTime,
 		Locked:          locked,
 	}
-	return sendCallbackRequest(d, r.callbackUrl)
+	return sendCallbackRequest(data, r.callbackUrl, r.address)
 }
 
+// findMinCreationHeight returns the minimum creation height from the receiver map.
 func findMinCreationHeight(rs map[uint64]*recv) uint64 {
 	var h uint64
 	for _, r := range rs {
@@ -116,12 +123,13 @@ func findMinCreationHeight(rs map[uint64]*recv) uint64 {
 	return h
 }
 
-func updateReceivers(ctx context.Context, rs map[uint64]*recv) {
+// updateReceivers updates receivers in the database that have been modified.
+func (d *Daemon) updateReceivers(ctx context.Context, rs map[uint64]*recv) {
 	for _, r := range rs {
 		if !r.updated {
 			continue
 		}
-		if _, err := db.ExecContext(ctx,
+		if _, err := d.db.ExecContext(ctx,
 			"UPDATE receivers SET received_amount=$1 WHERE subaddress_index=$2",
 			r.received, r.index); err != nil {
 			log.Error().Err(err).Uint64("address_index", r.index).
@@ -130,12 +138,13 @@ func updateReceivers(ctx context.Context, rs map[uint64]*recv) {
 	}
 }
 
+// makeRecvMap creates a map of receivers from database rows.
 func makeRecvMap(rows *sql.Rows) map[uint64]*recv {
 	rs := make(map[uint64]*recv)
 	for rows.Next() {
 		var t recv
 		if err := rows.Scan(&t.index, &t.expected, &t.received, &t.description, &t.callbackUrl,
-			&t.createdAt, &t.creationHeight); err != nil {
+			&t.createdAt, &t.creationHeight, &t.address); err != nil {
 			log.Error().Err(err).Msg("Failed to get payment requests from database")
 		}
 		rs[t.index] = &t
@@ -143,10 +152,28 @@ func makeRecvMap(rows *sql.Rows) map[uint64]*recv {
 	return rs
 }
 
-func checkTransfers() {
+// Base query for selecting receivers joined with their subaddresses.
+const receiversQuery = "SELECT r.subaddress_index,r.expected_amount,r.received_amount,r.description," +
+	"r.callback_url,r.created_at,r.creation_height,s.address FROM receivers r JOIN subaddresses s ON r.subaddress_index=s.address_index"
+
+// queryReceivers fetches receivers from the database.
+// If addressIndices is nil, all receivers are returned.
+// If addressIndices is provided, only matching receivers are returned (PostgreSQL uses ANY, SQLite does full scan).
+func (d *Daemon) queryReceivers(ctx context.Context, addressIndices []uint64) (*sql.Rows, error) {
+	if addressIndices == nil {
+		return d.db.QueryContext(ctx, receiversQuery)
+	}
+	if d.config.SQLiteCS != "" {
+		// SQLite doesn't support ANY, do full scan and filter in makeRecvMap caller
+		return d.db.QueryContext(ctx, receiversQuery)
+	}
+	return d.db.QueryContext(ctx, receiversQuery+" WHERE r.subaddress_index = ANY($1)", addressIndices)
+}
+
+// checkTransfers checks for new confirmed transfers and sends callbacks.
+func (d *Daemon) checkTransfers() {
 	ctx := context.Background()
-	rows, err := db.QueryContext(ctx, "SELECT subaddress_index,expected_amount,received_amount,description,"+
-		"callback_url,created_at,creation_height FROM receivers")
+	rows, err := d.queryReceivers(ctx, nil)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get payment requests from database")
 		return
@@ -157,7 +184,8 @@ func checkTransfers() {
 	if len(rs) == 0 {
 		return
 	}
-	resp, err := GetTransfers(ctx, &walletrpc.GetTransfersRequest{
+
+	resp, err := d.GetTransfers(ctx, &walletrpc.GetTransfersRequest{
 		In:             true,
 		FilterByHeight: true,
 		// If there are very old rows and they aren't removed, there can be
@@ -165,16 +193,18 @@ func checkTransfers() {
 		MinHeight: findMinCreationHeight(rs),
 	})
 	if err != nil {
+		checkFatalWalletError(err)
 		log.Error().Err(err).Msg("Failed to get incoming transfers")
 		return
 	}
 	if resp.In == nil {
 		return
 	}
-	maxHeight := lastCallbackHeight
+
+	maxHeight := d.lastCallbackHeight
 	for _, t := range resp.In {
 		locked, eventHeight := getTransferLockStatus(t)
-		if eventHeight <= lastCallbackHeight {
+		if eventHeight <= d.lastCallbackHeight {
 			continue
 		}
 		if r, ok := rs[t.SubaddrIndex.Minor]; ok {
@@ -183,7 +213,7 @@ func checkTransfers() {
 				r.updated = true
 			}
 			if r.callbackUrl != "" {
-				if err = callback(ctx, r, &t, locked); err != nil {
+				if err = d.sendPaymentCallback(ctx, r, &t, locked); err != nil {
 					log.Error().Err(err).Uint64("address_index", t.SubaddrIndex.Minor).
 						Uint64("amount", t.Amount).Str("tx_id", t.Txid).
 						Uint64("event_height", eventHeight).Bool("locked", locked).
@@ -203,29 +233,32 @@ func checkTransfers() {
 			}
 		}
 	}
-	if maxHeight == lastCallbackHeight {
+
+	if maxHeight == d.lastCallbackHeight {
 		return
 	}
-	lastCallbackHeight = maxHeight
-	if err := saveLastCallbackHeight(ctx); err != nil {
-		log.Error().Err(err).Uint64("height", lastCallbackHeight).Msg("Failed to save last callback height")
+	d.lastCallbackHeight = maxHeight
+	if err := d.saveLastCallbackHeight(ctx); err != nil {
+		log.Error().Err(err).Uint64("height", d.lastCallbackHeight).Msg("Failed to save last callback height")
 	} else {
-		log.Info().Uint64("height", lastCallbackHeight).Msg("Saved last callback height")
+		log.Info().Uint64("height", d.lastCallbackHeight).Msg("Saved last callback height")
 	}
-	updateReceivers(ctx, rs)
+	d.updateReceivers(ctx, rs)
 }
 
-func checkMempool() {
+// checkMempool checks for new mempool (unconfirmed) transfers and sends 0-conf callbacks.
+func (d *Daemon) checkMempool() {
 	ctx := context.Background()
-	resp, err := GetTransfers(ctx, &walletrpc.GetTransfersRequest{
+	resp, err := d.GetTransfers(ctx, &walletrpc.GetTransfersRequest{
 		Pool: true,
 	})
 	if err != nil {
+		checkFatalWalletError(err)
 		log.Error().Err(err).Msg("Failed to get mempool transfers")
 		return
 	}
 
-	rows, err := db.QueryContext(ctx, "SELECT txid FROM mempool_seen")
+	rows, err := d.db.QueryContext(ctx, "SELECT txid FROM mempool_seen")
 	if err != nil {
 		log.Err(err).Msg("Failed to query mempool cache in database")
 		return
@@ -244,7 +277,7 @@ func checkMempool() {
 
 	// Some pool transactions are cached in DB but the pool is empty. Purge cached transactions in DB.
 	if resp.Pool == nil && len(poolSeen) != 0 {
-		if _, err := db.ExecContext(ctx, "DELETE FROM mempool_seen"); err != nil {
+		if _, err := d.db.ExecContext(ctx, "DELETE FROM mempool_seen"); err != nil {
 			log.Err(err).Msg("Failed to purge mempool cache in database")
 		}
 		return
@@ -259,14 +292,7 @@ func checkMempool() {
 		addressIndices = append(addressIndices, p.SubaddrIndex.Minor)
 	}
 
-	if Config.sqliteCS != "" {
-		// Less efficient than the PostgreSQL query with ANY but SQLite is not meant for production use
-		rows, err = db.QueryContext(ctx, "SELECT subaddress_index,expected_amount,received_amount,description,"+
-			"callback_url,created_at,creation_height FROM receivers")
-	} else {
-		rows, err = db.QueryContext(ctx, "SELECT subaddress_index,expected_amount,received_amount,description,"+
-			"callback_url,created_at,creation_height FROM receivers WHERE subaddress_index = ANY($1)", addressIndices)
-	}
+	rows, err = d.queryReceivers(ctx, addressIndices)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get payment requests from database")
 		return
@@ -285,7 +311,7 @@ func checkMempool() {
 		}
 		if r, ok := rs[t.SubaddrIndex.Minor]; ok {
 			if r.callbackUrl != "" {
-				if err = callback(ctx, r, &t, true); err != nil {
+				if err = d.sendPaymentCallback(ctx, r, &t, true); err != nil {
 					log.Error().Err(err).Uint64("address_index", t.SubaddrIndex.Minor).
 						Uint64("amount", t.Amount).Str("tx_id", t.Txid).
 						Bool("locked", true).Bool("pool", true).
@@ -300,7 +326,7 @@ func checkMempool() {
 				}
 			}
 		}
-		if _, err := db.ExecContext(ctx, "INSERT INTO mempool_seen (txid) VALUES ($1)", t.Txid); err != nil {
+		if _, err := d.db.ExecContext(ctx, "INSERT INTO mempool_seen (txid) VALUES ($1)", t.Txid); err != nil {
 			log.Err(err).Msg("Failed to save txid into mempool cache in database")
 		}
 	}
@@ -319,34 +345,45 @@ func checkMempool() {
 		}
 	}
 
-	if Config.sqliteCS != "" {
-		for _, d := range toDelete {
-			if _, err := db.ExecContext(ctx, "DELETE FROM mempool_seen WHERE txid=$1", d); err != nil {
-				log.Err(err).Str("txid", d).Msg("Failed to delete old mempool_seen cache entry")
+	if d.config.SQLiteCS != "" {
+		for _, txid := range toDelete {
+			if _, err := d.db.ExecContext(ctx, "DELETE FROM mempool_seen WHERE txid=$1", txid); err != nil {
+				log.Err(err).Str("txid", txid).Msg("Failed to delete old mempool_seen cache entry")
 			}
 		}
 	} else {
-		if _, err := db.ExecContext(ctx, "DELETE FROM mempool_seen WHERE txid = ANY($1)", toDelete); err != nil {
+		if _, err := d.db.ExecContext(ctx, "DELETE FROM mempool_seen WHERE txid = ANY($1)", toDelete); err != nil {
 			log.Err(err).Msg("Failed to delete old mempool_seen cache entries")
 		}
 	}
 }
 
-func callbackRunner() {
+// callbackRunner is the main loop that polls for transfers and sends callbacks.
+func (d *Daemon) callbackRunner(ctx context.Context) {
+	ticker := time.NewTicker(d.config.PollFreq)
+	defer ticker.Stop()
+
 	for {
-		if Config.zeroConf {
-			checkMempool()
+		if d.config.ZeroConf {
+			d.checkMempool()
 		}
-		heightResp, err := getHeight(context.Background())
+
+		heightResp, err := d.getHeight(ctx)
 		if err != nil {
+			checkFatalWalletError(err)
 			log.Err(err).Msg("Failed to get height from wallet-rpc")
 		} else {
 			// If there was a new block, see if there is anything to callback
-			if heightResp.Height > lastSeenHeight {
-				checkTransfers()
-				lastSeenHeight = heightResp.Height
+			if heightResp.Height > d.lastSeenHeight {
+				d.checkTransfers()
+				d.lastSeenHeight = heightResp.Height
 			}
 		}
-		time.Sleep(Config.pollFreq)
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
 	}
 }

@@ -1,6 +1,6 @@
 /*
  * MoneroPay is a Monero payment processor.
- * Copyright (C) 2022 Laurynas Četyrkinas <stnby@kernal.eu>
+ * Copyright (C) 2026 Laurynas Četyrkinas <laurynas@digilol.net>
  * Copyright (C) 2022 İrem Kuyucu <siren@kernal.eu>
  *
  * MoneroPay is free software: you can redistribute it and/or modify
@@ -30,49 +30,58 @@ import (
 	"gitlab.com/moneropay/moneropay/v2/pkg/model"
 )
 
-func Receive(ctx context.Context, xmr uint64, desc, callbackUrl string) (string, time.Time, error) {
-	resp, err := createAddress(ctx, &walletrpc.CreateAddressRequest{})
+// Receive creates a new payment request with a unique subaddress.
+func (d *Daemon) Receive(ctx context.Context, xmr uint64, desc, callbackUrl string) (string, time.Time, error) {
+	resp, err := d.createAddress(ctx, &walletrpc.CreateAddressRequest{})
 	if err != nil {
 		return "", time.Time{}, err
 	}
+
 	t := time.Now()
 	var tx *sql.Tx
-	tx, err = db.BeginTx(ctx, nil)
+	tx, err = d.db.BeginTx(ctx, nil)
 	if err != nil {
 		return "", time.Time{}, err
 	}
+
 	if _, err = tx.ExecContext(ctx, "INSERT INTO subaddresses(address_index,address)VALUES($1,$2)",
 		resp.AddressIndex, resp.Address); err != nil {
 		tx.Rollback()
 		return "", time.Time{}, err
 	}
-	h, err := getHeight(ctx)
+
+	h, err := d.getHeight(ctx)
 	if err != nil {
 		return "", time.Time{}, err
 	}
+
 	if _, err = tx.ExecContext(ctx, "INSERT INTO receivers(subaddress_index,expected_amount,description,"+
 		"callback_url,created_at,received_amount,creation_height)VALUES($1,$2,$3,$4,$5,0,$6)",
 		resp.AddressIndex, xmr, desc, callbackUrl, t, h.Height); err != nil {
 		tx.Rollback()
 		return "", time.Time{}, err
 	}
+
 	if err = tx.Commit(); err != nil {
 		return "", time.Time{}, err
 	}
+
 	log.Info().Uint64("amount", xmr).Str("description", desc).Str("callback_url", callbackUrl).
 		Msg("Created new payment request")
 	return resp.Address, t, err
 }
 
+// Receiver holds payment request data from the database.
 type Receiver struct {
 	Index, Expected uint64
 	Description     string
 	CreatedAt       time.Time
 }
 
-func getReceiver(ctx context.Context, address string) (Receiver, error) {
+// getReceiver retrieves receiver data for a given address.
+func (d *Daemon) getReceiver(ctx context.Context, address string) (Receiver, error) {
 	var r Receiver
-	row := db.QueryRowContext(ctx,
+	row := d.db.QueryRowContext(ctx,
 		"SELECT address_index,expected_amount,description,created_at "+
 			"FROM subaddresses,receivers WHERE address_index=subaddress_index AND address=$1",
 		address)
@@ -80,11 +89,12 @@ func getReceiver(ctx context.Context, address string) (Receiver, error) {
 	return r, err
 }
 
-func getReceivedTransfers(ctx context.Context, index, min, max uint64) ([]walletrpc.Transfer, error) {
-	resp, err := GetTransfers(ctx, &walletrpc.GetTransfersRequest{
+// getReceivedTransfers retrieves transfers for a specific subaddress.
+func (d *Daemon) getReceivedTransfers(ctx context.Context, index, min, max uint64) ([]walletrpc.Transfer, error) {
+	resp, err := d.GetTransfers(ctx, &walletrpc.GetTransfersRequest{
 		SubaddrIndices: []uint64{index},
 		In:             true,
-		Pool:           Config.zeroConf,
+		Pool:           d.config.ZeroConf,
 		FilterByHeight: (min > 0 || max > 0),
 		MinHeight:      min,
 		MaxHeight:      max,
@@ -92,26 +102,31 @@ func getReceivedTransfers(ctx context.Context, index, min, max uint64) ([]wallet
 	if err != nil {
 		return nil, err
 	}
+
 	comb := resp.In
-	if Config.zeroConf {
+	if d.config.ZeroConf {
 		comb = append(resp.In, resp.Pool...)
 	}
 	return comb, nil
 }
 
-func GetPaymentRequest(ctx context.Context, address string, min, max uint64) (model.ReceiveGetResponse, error) {
-	var d model.ReceiveGetResponse
+// GetPaymentRequest retrieves the status of a payment request.
+func (d *Daemon) GetPaymentRequest(ctx context.Context, address string, min, max uint64) (model.ReceiveGetResponse, error) {
+	var data model.ReceiveGetResponse
+
 	// Get data for address from DB.
-	recv, err := getReceiver(ctx, address)
+	recv, err := d.getReceiver(ctx, address)
 	if err != nil {
-		return d, err
+		return data, err
 	}
+
 	// TODO: This call to wallet RPC can be avoided by caching the
 	// get_transfers response in the callback runner
-	tx, err := getReceivedTransfers(ctx, recv.Index, min, max)
+	tx, err := d.getReceivedTransfers(ctx, recv.Index, min, max)
 	if err != nil {
-		return d, err
+		return data, err
 	}
+
 	var total, unlocked uint64
 	for _, r1 := range tx {
 		isLocked, _ := getTransferLockStatus(r1)
@@ -130,18 +145,20 @@ func GetPaymentRequest(ctx context.Context, address string, min, max uint64) (mo
 			UnlockTime:      r1.UnlockTime,
 			Locked:          isLocked,
 		}
-		d.Transactions = append(d.Transactions, r2)
+		data.Transactions = append(data.Transactions, r2)
 	}
-	d.Amount.Expected = recv.Expected
-	d.Description = recv.Description
-	d.CreatedAt = recv.CreatedAt
-	d.Amount.Covered.Total = total
-	d.Amount.Covered.Unlocked = unlocked
-	d.Complete = d.Amount.Covered.Unlocked >= d.Amount.Expected
-	return d, nil
+
+	data.Amount.Expected = recv.Expected
+	data.Description = recv.Description
+	data.CreatedAt = recv.CreatedAt
+	data.Amount.Covered.Total = total
+	data.Amount.Covered.Unlocked = unlocked
+	data.Complete = data.Amount.Covered.Unlocked >= data.Amount.Expected
+	return data, nil
 }
 
-func DeletePaymentRequest(ctx context.Context, address string) error {
-	_, err := db.ExecContext(ctx, "DELETE FROM subaddresses WHERE address=$1", address)
+// DeletePaymentRequest removes a payment request by address.
+func (d *Daemon) DeletePaymentRequest(ctx context.Context, address string) error {
+	_, err := d.db.ExecContext(ctx, "DELETE FROM subaddresses WHERE address=$1", address)
 	return err
 }

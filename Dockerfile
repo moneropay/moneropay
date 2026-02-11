@@ -1,9 +1,9 @@
-FROM --platform=$BUILDPLATFORM techknowlogick/xgo:go-1.23.2 AS build
+FROM --platform=$BUILDPLATFORM techknowlogick/xgo:go-1.25.7 AS build
 
 ADD . /go/src
 WORKDIR /go/src
 ARG TARGETOS TARGETARCH
-RUN --mount=target=. --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/go/pkg xgo -x --targets=$TARGETOS/$TARGETARCH -ldflags '-s -w -extldflags "-static"' -out moneropay cmd/moneropay
+RUN --mount=target=. --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/go/pkg xgo -x --targets=$TARGETOS/$TARGETARCH -ldflags '-s -w -extldflags "-static"' -trimpath -out moneropay cmd/moneropay
 COPY db /out/db
 RUN mv /build/moneropay-* /out/moneropay
 

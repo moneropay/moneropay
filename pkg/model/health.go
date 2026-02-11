@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 Laurynas Četyrkinas <stnby@kernal.eu>
+ * Copyright (C) 2026 Laurynas Četyrkinas <laurynas@digilol.net>
  * Copyright (C) 2023 İrem Kuyucu <siren@kernal.eu>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,8 +20,9 @@ package model
 type HealthResponse struct {
 	Status   int `json:"status"`
 	Services struct {
-		WalletRPC  bool `json:"walletrpc"`
-		PostgreSQL bool `json:"postgresql,omitempty"`
-		SQLite     bool `json:"sqlite,omitempty"`
+		WalletRPC   bool `json:"walletrpc"`
+		PostgreSQL  bool `json:"postgresql,omitempty"`
+		SQLite      bool `json:"sqlite,omitempty"`
+		KeysPending bool `json:"keys_pending,omitempty"`
 	} `json:"services"`
 }

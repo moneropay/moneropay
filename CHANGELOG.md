@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.0] - 2026-02-11
+### Added
+- View-only wallet initialization mode (`--init-view-only`) - allows bootstrapping a new view-only wallet with generated keys without needing external wallet software.
+- Network selection flag (`--init-view-only-network`) for specifying mainnet, testnet, or stagenet.
+- Direct Monero daemon RPC connection (`--daemon-address`) required for view-only init mode to query blockchain height.
+- `GET /keys` endpoint for one-time retrieval of generated wallet keys (mnemonic, spend/view keys, restore height). Keys are cleared from memory after retrieval.
+- `pkg/xmrkey` package for Monero key generation and mnemonic support with all official Monero wordlists.
+
+### Changed
+- Internal architecture refactored to use dependency injection pattern for better testability.
+- Config struct fields are now exported for external access.
+- Wallet initialization now creates wallet via `generate_from_keys` RPC for view-only mode instead of `create_wallet`.
+
+### Technical Notes
+- View-only mode requires `--daemon-address` because wallet-rpc cannot provide blockchain height without an open wallet.
+- Keys are generated in-process using Go crypto rather than delegating to wallet-rpc, as wallet-rpc cannot create wallets without persisting to disk or delete existing wallet files.
+
 ## [2.8.1] - 2025-11-24
 ### Fixed
 - Updated dependencies to fix a bug related to go-monero library's TransferSplitResponse reported by EgeBalci.

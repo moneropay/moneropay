@@ -1,6 +1,6 @@
 /*
  * MoneroPay is a Monero payment processor.
- * Copyright (C) 2022 Laurynas Četyrkinas <stnby@kernal.eu>
+ * Copyright (C) 2026 Laurynas Četyrkinas <laurynas@digilol.net>
  * Copyright (C) 2022 İrem Kuyucu <siren@kernal.eu>
  *
  * MoneroPay is free software: you can redistribute it and/or modify
@@ -25,6 +25,16 @@ import (
 )
 
 func main() {
-	daemon.Run()
-	server.Run()
+	// Load configuration from flags and environment
+	cfg := daemon.LoadConfig()
+
+	// Setup logger
+	daemon.SetupLogger(cfg.LogFormat)
+
+	// Create and start the daemon
+	d := daemon.New(cfg)
+	d.Run()
+
+	// Start the HTTP server
+	server.Run(d)
 }
